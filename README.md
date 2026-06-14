@@ -4,7 +4,7 @@
 - Daniel Ferriani de Chico
 - Bruno Romano Kimura
 - João Pedro Braga
-- Thomaz
+- Thomaz Palma
 - Caíque Carneiro
 ---
 ### Documentação:
