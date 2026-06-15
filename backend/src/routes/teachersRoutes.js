@@ -1,7 +1,7 @@
 const { Router } = require('express');
 const { body } = require('express-validator');
 const TeachersController = require('../controllers/teachersController');
-const { authMiddleware } = require('../middleware/auth');
+const { authMiddleware } = require('../middleware/authMiddleware');
 
 const router = Router();
 

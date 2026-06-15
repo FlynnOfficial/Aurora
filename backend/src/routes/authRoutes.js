@@ -1,22 +1,34 @@
-const { Router } = require('express');
+// routes/authRoutes.js
+const express = require('express');
 const { body } = require('express-validator');
-const AuthController = require('../controllers/authController');
-const { authMiddleware } = require('../middleware/auth');
+const authController = require('../controllers/authController');
+const { authMiddleware } = require('../middleware/authMiddleware');
 
-const router = Router();
+const router = express.Router();
 
-router.post('/login', [
-  body('email').isEmail().withMessage('Email inválido'),
-  body('password').notEmpty().withMessage('Senha é obrigatória')
-], AuthController.login);
+// Login
+router.post(
+  '/login',
+  [
+    body('email').isEmail().normalizeEmail(),
+    body('password').isLength({ min: 4 }).trim()
+  ],
+  authController.login
+);
 
-router.post('/register', [
-  body('name').notEmpty().withMessage('Nome é obrigatório'),
-  body('email').isEmail().withMessage('Email inválido'),
-  body('password').isLength({ min: 6 }).withMessage('Senha deve ter no mínimo 6 caracteres'),
-  body('role').isIn(['admin', 'teacher', 'secretary']).withMessage('Role inválida')
-], AuthController.register);
+// Register
+router.post(
+  '/register',
+  [
+    body('email').isEmail().normalizeEmail(),
+    body('password').isLength({ min: 4 }),
+    body('name').notEmpty().trim(),
+    body('role').isIn(['admin', 'teacher', 'secretary', 'student'])
+  ],
+  authController.register
+);
 
-router.get('/me', authMiddleware, AuthController.me);
+// Get current user
+router.get('/me', authMiddleware, authController.me);
 
 module.exports = router;

@@ -1,6 +1,6 @@
 const { Router } = require('express');
 const ChatBotController = require('../controllers/chatBotController');
-const { authMiddleware } = require('../middleware/auth');
+const { authMiddleware } = require('../middleware/authMiddleware');
 
 const router = Router();
 

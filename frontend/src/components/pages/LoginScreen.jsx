@@ -69,7 +69,6 @@ function LoginScreen() {
       <div className="login-card">
         <div className="login-header">
           <h1>Sistema Escolar Aurora</h1>
-          <p>Conectado ao banco de dados</p>
         </div>
 
         {erro && (
@@ -83,7 +82,7 @@ function LoginScreen() {
             <label>E-mail</label>
             <input
               type="email"
-              placeholder="admin@escola.com"
+              placeholder="seuemail@email.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               disabled={loading}
@@ -100,7 +99,7 @@ function LoginScreen() {
               disabled={loading}
             />
             <button type="button" onClick={() => setMostrarSenha(!mostrarSenha)} style={{ fontSize: '12px', marginTop: '5px' }}>
-              {mostrarSenha ? '🙈 Ocultar' : '👁️ Mostrar'}
+              {mostrarSenha ? 'Ocultar' : 'Mostrar'}
             </button>
           </div>
 
@@ -109,12 +108,6 @@ function LoginScreen() {
           </button>
         </form>
 
-        <div style={{ marginTop: '20px', padding: '10px', backgroundColor: '#f0f0f0', borderRadius: '5px', fontSize: '13px' }}>
-          <p><strong>Contas de teste:</strong></p>
-          <p>📧 admin@escola.com / 123456</p>
-          <p>📧 prof@escola.com / 123456</p>
-          <p>📧 aluno@escola.com / 123456</p>
-        </div>
       </div>
     </div>
   )

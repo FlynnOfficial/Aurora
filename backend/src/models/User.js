@@ -1,61 +1,53 @@
-const db = require('../config/database');
+// src/models/User.js
 const bcrypt = require('bcryptjs');
+
+// Tenta importar de diferentes caminhos
+let pool;
+try {
+  pool = require('../db');
+  console.log('✅ Pool importado de ../db');
+} catch (err) {
+  console.error('❌ Erro ao importar pool:', err.message);
+  try {
+    pool = require('./db');
+    console.log('✅ Pool importado de ./db');
+  } catch (err2) {
+    console.error('❌ Erro ao importar pool de ./db:', err2.message);
+  }
+}
 
 class User {
   static async findByEmail(email) {
-    const result = await db.query(
-      'SELECT * FROM users WHERE email = $1 AND active = true',
+    const result = await pool.query(
+      'SELECT id, name, email, password, role, active FROM users WHERE email = $1 AND active = true',
       [email]
     );
     return result.rows[0];
   }
 
   static async findById(id) {
-    const result = await db.query(
-      'SELECT id, name, email, role, created_at FROM users WHERE id = $1',
+    const result = await pool.query(
+      'SELECT id, name, email, role, active FROM users WHERE id = $1 AND active = true',
       [id]
     );
     return result.rows[0];
   }
 
-  static async create({ name, email, password, role }) {
+  static async create(userData) {
+    const { name, email, password, role } = userData;
+    
     const hashedPassword = await bcrypt.hash(password, 10);
-    const result = await db.query(
-      `INSERT INTO users (name, email, password, role)
-       VALUES ($1, $2, $3, $4)
-       RETURNING id, name, email, role, created_at`,
+    
+    const result = await pool.query(
+      'INSERT INTO users (name, email, password, role, active) VALUES ($1, $2, $3, $4, true) RETURNING id, name, email, role',
       [name, email, hashedPassword, role]
     );
+    
     return result.rows[0];
   }
 
-  static async comparePassword(password, hashedPassword) {
-    return bcrypt.compare(password, hashedPassword);
-  }
-
-  static async findAll() {
-    const result = await db.query(
-      'SELECT id, name, email, role, active, created_at FROM users WHERE active = true ORDER BY name'
-    );
-    return result.rows;
-  }
-
-  static async update(id, { name, email, role }) {
-    const result = await db.query(
-      `UPDATE users 
-       SET name = $1, email = $2, role = $3, updated_at = CURRENT_TIMESTAMP
-       WHERE id = $4 AND active = true
-       RETURNING id, name, email, role, updated_at`,
-      [name, email, role, id]
-    );
-    return result.rows[0];
-  }
-
-  static async deactivate(id) {
-    await db.query(
-      'UPDATE users SET active = false, updated_at = CURRENT_TIMESTAMP WHERE id = $1',
-      [id]
-    );
+  static async comparePassword(password, hash) {
+    return await bcrypt.compare(password, hash);
   }
 }
 
