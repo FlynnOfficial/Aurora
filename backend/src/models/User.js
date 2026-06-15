@@ -5,14 +5,14 @@ const bcrypt = require('bcryptjs');
 let pool;
 try {
   pool = require('../db');
-  console.log('✅ Pool importado de ../db');
+  console.log('Pool importado de ../db');
 } catch (err) {
-  console.error('❌ Erro ao importar pool:', err.message);
+  console.error('Erro ao importar pool:', err.message);
   try {
     pool = require('./db');
-    console.log('✅ Pool importado de ./db');
+    console.log('Pool importado de ./db');
   } catch (err2) {
-    console.error('❌ Erro ao importar pool de ./db:', err2.message);
+    console.error('Erro ao importar pool de ./db:', err2.message);
   }
 }
 
