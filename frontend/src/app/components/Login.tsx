@@ -20,47 +20,29 @@ export function Login({ onLogin, onRegister }: LoginProps) {
 
   const resetFields = () => { setEmail(''); setPassword(''); setAdminError(''); };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (userType === 'student') {
+    try {
+      const { api } = await import('../services/api');
+      const response = await api.login(email, password);
+
+      if (response.error) {
+        setAdminError(response.error);
+        return;
+      }
+
+      // Store token
+      localStorage.setItem('token', response.token);
+      localStorage.setItem('userId', response.userId);
+
       onLogin({
-        name: 'Maria Silva',
-        email: email || 'maria.silva@escola.com',
-        class: '9º Ano A',
-        enrollment: '2024001',
-      }, 'student');
-      return;
+        name: response.name,
+        email: response.email,
+      }, response.role.toLowerCase() as 'student' | 'teacher' | 'admin' | 'super_admin');
+    } catch (error) {
+      setAdminError('Erro ao conectar ao servidor');
     }
-
-    if (userType === 'teacher') {
-      onLogin({
-        name: 'Prof. Carlos Oliveira',
-        email: email || 'carlos.oliveira@escola.com',
-        subject: 'Matemática',
-      }, 'teacher');
-      return;
-    }
-
-    // Admin tab: check super admin first, then normal admin
-    const superAdmin = mockSuperAdmins.find(
-      (sa) => sa.email === email && sa.password === password
-    );
-    if (superAdmin) {
-      onLogin({ name: superAdmin.name, email: superAdmin.email, role: 'super_admin' }, 'super_admin');
-      return;
-    }
-
-    // Normal admin login (any other credential)
-    if (!email || !password) {
-      setAdminError('Preencha e-mail e senha.');
-      return;
-    }
-    onLogin({
-      name: 'Diretora Helena Costa',
-      email: email || 'helena.costa@escola.com',
-      role: 'Diretora',
-    }, 'admin');
   };
 
   return (

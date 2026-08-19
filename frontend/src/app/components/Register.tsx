@@ -435,7 +435,20 @@ function FisicaForm({ onSubmit }: { onSubmit: () => void }) {
         />
       </div>
 
-      <Button type="submit" className="w-full bg-purple-600 hover:bg-purple-700">
+      <Button 
+        type="submit" 
+        className="w-full bg-purple-600 hover:bg-purple-700"
+        onClick={async (e) => {
+          e.preventDefault();
+          try {
+            const { api } = await import('../services/api');
+            await api.register(fields.email, fields.senha, fields.nome, 'ADMIN');
+            alert('Cadastro enviado para análise!');
+          } catch (error) {
+            alert('Erro ao registrar');
+          }
+        }}
+      >
         Cadastrar
       </Button>
     </form>

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Login } from './components/Login';
 import { Register } from './components/Register';
 import { StudentDashboard } from './components/StudentDashboard';
@@ -21,15 +21,33 @@ export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [userType, setUserType] = useState<UserType>(null);
 
+  useEffect(() => {
+    // Checa se o usuário já está logado
+    const token = localStorage.getItem('token');
+    if (token) {
+      // Restaura a sessão do usuário se necessário
+      const storedUser = localStorage.getItem('user');
+      if (storedUser) {
+        const parsedUser = JSON.parse(storedUser);
+        setUser(parsedUser.user);
+        setUserType(parsedUser.userType);
+      }
+    }
+  }, []);
+
   const handleLogin = (userData: User, type: 'student' | 'teacher' | 'admin' | 'super_admin') => {
     setUser(userData);
     setUserType(type);
+    localStorage.setItem('user', JSON.stringify({ user: userData, userType: type }));
   };
 
   const handleLogout = () => {
     setUser(null);
     setUserType(null);
     setScreen('login');
+    localStorage.removeItem('token');
+    localStorage.removeItem('userId');
+    localStorage.removeItem('user');
   };
 
   if (screen === 'register') {
