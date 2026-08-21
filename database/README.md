@@ -15,9 +15,39 @@ Este diretório contém os scripts SQL para inicializar e gerenciar o banco de d
 - MariaDB 10.5+
 - Permissões de root ou sudo para criar banco de dados
 
-## Instalação
+## Instalação no Windows
 
 ### 1. Criar Banco de Dados
+
+No MySQL Workbench, abra `schema.sql`, execute o script inteiro e depois execute
+`init.sql`. Se o cliente de linha de comando estiver instalado, use PowerShell:
+
+```powershell
+mysql.exe -u root -p < schema.sql
+mysql.exe -u root -p aurora_db < init.sql
+mysql.exe -u root -p -e "USE aurora_db; SHOW TABLES;"
+```
+
+O serviço precisa estar iniciado. No Windows, verifique em `services.msc` ou
+com `Get-Service MySQL*`.
+
+### Usuário da aplicação
+
+```sql
+CREATE USER 'aurora_user'@'localhost' IDENTIFIED BY 'senha_forte_aqui';
+GRANT ALL PRIVILEGES ON aurora_db.* TO 'aurora_user'@'localhost';
+FLUSH PRIVILEGES;
+```
+
+Depois inicie o backend com:
+
+```powershell
+$env:DB_USERNAME = "aurora_user"
+$env:DB_PASSWORD = "senha_forte_aqui"
+mvn spring-boot:run
+```
+
+### Comandos úteis
 
 ```bash
 # Opção 1: Via MySQL CLI

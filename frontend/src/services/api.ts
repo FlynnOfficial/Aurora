@@ -1,75 +1,53 @@
-const API_BASE_URL = 'http://localhost:8080/api';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080/api';
+
+async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const token = localStorage.getItem('token');
+  const headers = new Headers(init.headers);
+  headers.set('Content-Type', 'application/json');
+  if (token) headers.set('Authorization', `Bearer ${token}`);
+
+  const response = await fetch(`${API_BASE_URL}${path}`, { ...init, headers });
+  const contentType = response.headers.get('content-type') ?? '';
+  const body = contentType.includes('application/json') ? await response.json() : null;
+
+  if (!response.ok) {
+    throw new Error(body?.error ?? `Erro HTTP ${response.status}`);
+  }
+
+  return body as T;
+}
 
 export const api = {
   // Auth endpoints
-  login: async (email: string, password: string) => {
-    const response = await fetch(`${API_BASE_URL}/auth/login`, {
+  login: (email: string, password: string) => request('/auth/login', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password }),
-    });
-    return response.json();
-  },
+    }),
 
-  register: async (email: string, password: string, name: string, role: string) => {
-    const response = await fetch(`${API_BASE_URL}/auth/register`, {
+  register: (email: string, password: string, name: string, role: string) => request('/auth/register', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password, name, role }),
-    });
-    return response.json();
-  },
+    }),
 
-  changePassword: async (userId: number, oldPassword: string, newPassword: string) => {
-    const response = await fetch(`${API_BASE_URL}/auth/change-password`, {
+  changePassword: (userId: number, oldPassword: string, newPassword: string) => request('/auth/change-password', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ userId, oldPassword, newPassword }),
-    });
-    return response.json();
-  },
+    }),
 
   // Student endpoints
-  getStudentProfile: async (userId: number) => {
-    const response = await fetch(`${API_BASE_URL}/students/${userId}`);
-    return response.json();
-  },
+  getStudentProfile: (userId: number) => request(`/students/${userId}`),
 
-  getStudentGrades: async (studentId: number) => {
-    const response = await fetch(`${API_BASE_URL}/grades/student/${studentId}`);
-    return response.json();
-  },
+  getStudentGrades: (studentId: number) => request(`/grades/student/${studentId}`),
 
-  getStudentAverage: async (studentId: number) => {
-    const response = await fetch(`${API_BASE_URL}/grades/student/${studentId}/average`);
-    return response.json();
-  },
+  getStudentAverage: (studentId: number) => request(`/grades/student/${studentId}/average`),
 
   // Teacher endpoints
-  getTeacherProfile: async (userId: number) => {
-    const response = await fetch(`${API_BASE_URL}/teachers/${userId}`);
-    return response.json();
-  },
+  getTeacherProfile: (userId: number) => request(`/teachers/${userId}`),
 
   // Admin endpoints
-  getPendingRegistrations: async () => {
-    const response = await fetch(`${API_BASE_URL}/admin/registrations/pending`);
-    return response.json();
-  },
+  getPendingRegistrations: () => request('/admin/registrations/pending'),
 
-  approveRegistration: async (registrationId: number) => {
-    const response = await fetch(`${API_BASE_URL}/admin/registrations/${registrationId}/approve`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-    });
-    return response.json();
-  },
+  approveRegistration: (registrationId: number) => request(`/admin/registrations/${registrationId}/approve`, { method: 'PUT' }),
 
-  rejectRegistration: async (registrationId: number) => {
-    const response = await fetch(`${API_BASE_URL}/admin/registrations/${registrationId}/reject`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-    });
-    return response.json();
-  },
+  rejectRegistration: (registrationId: number) => request(`/admin/registrations/${registrationId}/reject`, { method: 'PUT' }),
 };

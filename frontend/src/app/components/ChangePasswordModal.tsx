@@ -18,6 +18,7 @@ export function ChangePasswordModal({ onClose }: ChangePasswordModalProps) {
   const [code, setCode] = useState('');
   const [showNext, setShowNext] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [submitting, setSubmitting] = useState(false);
 
   const validateFields = () => {
     const errs: Record<string, string> = {};
@@ -120,11 +121,24 @@ export function ChangePasswordModal({ onClose }: ChangePasswordModalProps) {
             <p className="text-xs text-gray-400">Demo: qualquer sequência de 6 dígitos.</p>
             <Button
               className="w-full bg-purple-600 hover:bg-purple-700"
-              disabled={code.length !== 6}
-              onClick={() => setStep('done')}
+              disabled={code.length !== 6 || submitting}
+              onClick={async () => {
+                setSubmitting(true);
+                try {
+                  const { api } = await import('../../services/api');
+                  const userId = Number(localStorage.getItem('userId'));
+                  await api.changePassword(userId, current, next);
+                  setStep('done');
+                } catch (error) {
+                  setErrors({ code: error instanceof Error ? error.message : 'Não foi possível alterar a senha' });
+                } finally {
+                  setSubmitting(false);
+                }
+              }}
             >
               Confirmar
             </Button>
+            {errors.code && <p className="text-xs text-red-500 text-center">{errors.code}</p>}
           </div>
         )}
 

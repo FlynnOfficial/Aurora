@@ -244,7 +244,7 @@ function PendingStep({ onBack }: { onBack: () => void }) {
 
 // ── Pessoa Física form ────────────────────────────────────────────────────────
 
-function FisicaForm({ onSubmit }: { onSubmit: () => void }) {
+function FisicaForm({ onSubmit }: { onSubmit: (fields: { email: string; senha: string; nome: string }) => void | Promise<void> }) {
   const [fields, setFields] = useState({
     cpf: '', nome: '', sobrenome: '', nascimento: '',
     email: '', telefone: '', senha: '', confirma: '',
@@ -264,7 +264,7 @@ function FisicaForm({ onSubmit }: { onSubmit: () => void }) {
 
   const allPasswordRulesPassed = passwordRules.every((r) => r.test(fields.senha));
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const errs: Record<string, string> = {};
     if (!fields.cpf || fields.cpf.replace(/\D/g, '').length < 11) errs.cpf = 'CPF inválido';
@@ -288,7 +288,7 @@ function FisicaForm({ onSubmit }: { onSubmit: () => void }) {
     }
 
     if (Object.keys(errs).length > 0) { setErrors(errs); return; }
-    onSubmit();
+    await onSubmit({ email: fields.email, senha: fields.senha, nome: `${fields.nome} ${fields.sobrenome}` });
   };
 
   return (
@@ -435,20 +435,7 @@ function FisicaForm({ onSubmit }: { onSubmit: () => void }) {
         />
       </div>
 
-      <Button 
-        type="submit" 
-        className="w-full bg-purple-600 hover:bg-purple-700"
-        onClick={async (e) => {
-          e.preventDefault();
-          try {
-            const { api } = await import('../services/api');
-            await api.register(fields.email, fields.senha, fields.nome, 'ADMIN');
-            alert('Cadastro enviado para análise!');
-          } catch (error) {
-            alert('Erro ao registrar');
-          }
-        }}
-      >
+      <Button type="submit" className="w-full bg-purple-600 hover:bg-purple-700">
         Cadastrar
       </Button>
     </form>
@@ -725,6 +712,12 @@ export function Register({ onBack }: RegisterProps) {
   const [step, setStep] = useState<Step>('form');
   const [regType, setRegType] = useState<'fisica' | 'juridica'>('fisica');
 
+  const registerAdmin = async (fields: { email: string; senha: string; nome: string }) => {
+    const { api } = await import('../../services/api');
+    await api.register(fields.email, fields.senha, fields.nome, 'ADMIN');
+    setStep('verify');
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
       <Card className="w-full max-w-lg">
@@ -766,7 +759,7 @@ export function Register({ onBack }: RegisterProps) {
 
                 <div className="max-h-[60vh] overflow-y-auto pr-1">
                   <TabsContent value="fisica">
-                    <FisicaForm onSubmit={() => setStep('verify')} />
+                    <FisicaForm onSubmit={registerAdmin} />
                   </TabsContent>
                   <TabsContent value="juridica">
                     <JuridicaForm onSubmit={() => setStep('verify')} />

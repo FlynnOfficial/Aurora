@@ -46,14 +46,14 @@ public class SecurityConfig {
                 sessionManagement.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
             )
             .authorizeHttpRequests(authz -> authz
-                .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
-                .requestMatchers(HttpMethod.POST, "/api/auth/register").permitAll()
-                .requestMatchers(HttpMethod.POST, "/api/auth/refresh-token").permitAll()
-                .requestMatchers("/api/public/**").permitAll()
-                .requestMatchers("/api/students/**").hasAnyRole("STUDENT", "ADMIN", "SUPER_ADMIN")
-                .requestMatchers("/api/teachers/**").hasAnyRole("TEACHER", "ADMIN", "SUPER_ADMIN")
-                .requestMatchers("/api/admin/**").hasAnyRole("ADMIN", "SUPER_ADMIN")
-                .requestMatchers("/api/grades/**").hasAnyRole("STUDENT", "TEACHER", "ADMIN", "SUPER_ADMIN")
+                .requestMatchers(HttpMethod.POST, "/auth/login").permitAll()
+                .requestMatchers(HttpMethod.POST, "/auth/register").permitAll()
+                .requestMatchers(HttpMethod.POST, "/auth/refresh-token").permitAll()
+                .requestMatchers("/public/**").permitAll()
+                .requestMatchers("/students/**").hasAnyRole("STUDENT", "ADMIN", "SUPER_ADMIN")
+                .requestMatchers("/teachers/**").hasAnyRole("TEACHER", "ADMIN", "SUPER_ADMIN")
+                .requestMatchers("/admin/**").hasAnyRole("ADMIN", "SUPER_ADMIN")
+                .requestMatchers("/grades/**").hasAnyRole("STUDENT", "TEACHER", "ADMIN", "SUPER_ADMIN")
                 .anyRequest().authenticated()
             );
 

@@ -5,7 +5,6 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { GraduationCap, User, Lock, Mail, ShieldCheck, UserPlus } from 'lucide-react';
-import { mockSuperAdmins } from '../data/mockData';
 
 interface LoginProps {
   onLogin: (user: any, userType: 'student' | 'teacher' | 'admin' | 'super_admin') => void;
@@ -24,24 +23,21 @@ export function Login({ onLogin, onRegister }: LoginProps) {
     e.preventDefault();
 
     try {
-      const { api } = await import('../services/api');
+      const { api } = await import('../../services/api');
       const response = await api.login(email, password);
 
-      if (response.error) {
-        setAdminError(response.error);
-        return;
-      }
-
       // Store token
-      localStorage.setItem('token', response.token);
-      localStorage.setItem('userId', response.userId);
+      localStorage.setItem('token', response.accessToken);
+      localStorage.setItem('userId', String(response.userId));
 
       onLogin({
+        id: response.userId,
         name: response.name,
         email: response.email,
+        role: response.role,
       }, response.role.toLowerCase() as 'student' | 'teacher' | 'admin' | 'super_admin');
     } catch (error) {
-      setAdminError('Erro ao conectar ao servidor');
+      setAdminError(error instanceof Error ? error.message : 'Erro ao conectar ao servidor');
     }
   };
 

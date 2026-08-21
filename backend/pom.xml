@@ -124,6 +124,13 @@
             <scope>test</scope>
         </dependency>
 
+        <!-- Banco em memória para os testes -->
+        <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
+            <scope>test</scope>
+        </dependency>
+
         <!-- JUnit 5 -->
         <dependency>
             <groupId>org.junit.jupiter</groupId>

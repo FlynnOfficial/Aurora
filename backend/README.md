@@ -1,32 +1,36 @@
+# Aurora Backend
 
----
+## Requisitos
 
-## 5. **backend/README.md**
+- Java 21
+- Maven 3.9+
+- MySQL 8 ou MariaDB 10.5+
 
-```markdown
-# 🚀 Aurora School System - Backend
+## Executar
 
-Backend seguro em Java 21 com Spring Boot 3.2.0, JWT, BCrypt e proteções contra ataques.
+1. Crie o banco seguindo [../database/README.md](../database/README.md).
+2. Se a senha do banco não for `root`, defina `DB_PASSWORD` no terminal.
+3. Compile e teste:
 
-## 📋 Requisitos
+```powershell
+mvn clean test
+```
 
-- **Java 21** (OpenJDK ou Oracle JDK)
-- **Maven 3.9+**
-- **MySQL 8.0+** ou **MariaDB 10.5+**
-- **Git**
+4. Inicie a API:
 
-## 🔧 Instalação
-
-### 1. Clonar o Repositório
-
-```bash
-git clone https://github.com/FlynnOfficial/Aurora.git
-cd Aurora/backend
-
-# Instalar dependências
-mvn clean install
-
-# Rodar servidor
+```powershell
 mvn spring-boot:run
+```
 
-# Esperado: Application started on http://localhost:8080
+A API fica em `http://localhost:8080/api`. O prefixo `/api` vem de
+`server.servlet.context-path`.
+
+Variáveis aceitas: `DB_URL`, `DB_USERNAME`, `DB_PASSWORD` e `JWT_SECRET`.
+
+Exemplo no PowerShell:
+
+```powershell
+$env:DB_PASSWORD = "sua senha"
+$env:DB_USERNAME = "aurora_user"
+mvn spring-boot:run
+```
