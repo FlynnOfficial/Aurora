@@ -9,6 +9,35 @@
 ---
 ## Como ligar o sistema
 
+### Com Docker (recomendado)
+
+Instale o Docker Desktop, abra um terminal na pasta `Aurora` e execute:
+
+```powershell
+docker compose up --build
+```
+
+Depois abra `http://localhost:5173`. A API estará em
+`http://localhost:8080/api`.
+
+Para parar os serviços:
+
+```powershell
+docker compose down
+```
+
+Para apagar também os dados persistidos do banco e inicializá-lo novamente:
+
+```powershell
+docker compose down -v
+```
+
+O banco executa `database/schema.sql` e `database/init.sql` automaticamente na
+primeira criação do volume. Para trocar a senha padrão, crie um arquivo `.env`
+na raiz com `MYSQL_ROOT_PASSWORD=uma_senha` antes de executar o Compose.
+
+### Execução manual
+
 1. Inicie o serviço MySQL e execute `database/schema.sql` seguido de
 	`database/init.sql`.
 2. Em um terminal, entre em `backend` e execute `mvn spring-boot:run`.
