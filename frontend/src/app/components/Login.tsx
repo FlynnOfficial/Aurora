@@ -111,6 +111,23 @@ export function Login({ onLogin, onRegister }: LoginProps) {
                 <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700">
                   Entrar como Aluno
                 </Button>
+                <div className="relative">
+                  <div className="absolute inset-0 flex items-center">
+                    <span className="w-full border-t" />
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-white px-2 text-gray-400">ou</span>
+                  </div>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={onRegister}
+                  className="w-full flex items-center gap-2 border-blue-200 text-blue-700 hover:bg-blue-50"
+                >
+                  <UserPlus className="size-4" />
+                  Cadastrar nova conta
+                </Button>
                 <p className="text-sm text-center text-gray-500">
                   Demo: maria.silva@escola.com / aluno123
                 </p>
@@ -150,6 +167,23 @@ export function Login({ onLogin, onRegister }: LoginProps) {
                 </div>
                 <Button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700">
                   Entrar como Professor
+                </Button>
+                <div className="relative">
+                  <div className="absolute inset-0 flex items-center">
+                    <span className="w-full border-t" />
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-white px-2 text-gray-400">ou</span>
+                  </div>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={onRegister}
+                  className="w-full flex items-center gap-2 border-indigo-200 text-indigo-700 hover:bg-indigo-50"
+                >
+                  <UserPlus className="size-4" />
+                  Cadastrar nova conta
                 </Button>
                 <p className="text-sm text-center text-gray-500">
                   Demo: carlos.oliveira@escola.com / prof123

@@ -5,6 +5,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import jakarta.persistence.*;
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "users")
@@ -33,18 +34,20 @@ public class User {
     @Column(nullable = false, columnDefinition = "BOOLEAN DEFAULT TRUE")
     private Boolean active = true;
 
-    @Column(name = "created_at", nullable = false, columnDefinition = "TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
-    private Long createdAt;
+    @Transient
+    private LocalDateTime createdAt;
 
-    @Column(name = "last_login")
-    private Long lastLogin;
+    @Transient
+    private LocalDateTime lastLogin;
 
     @Column(name = "failed_attempts", columnDefinition = "INT DEFAULT 0")
     private Integer failedAttempts = 0;
 
     @PrePersist
     protected void onCreate() {
-        createdAt = System.currentTimeMillis();
+        if (createdAt == null) {
+            createdAt = LocalDateTime.now();
+        }
     }
 
     public enum UserRole {

@@ -13,6 +13,7 @@ import {
   CheckCircle,
   RefreshCw,
   Clock,
+  ShieldAlert,
 } from 'lucide-react';
 
 interface RegisterProps {
@@ -706,15 +707,16 @@ function JuridicaForm({ onSubmit }: { onSubmit: () => void }) {
 
 // ── Register root ─────────────────────────────────────────────────────────────
 
-type Step = 'form' | 'verify' | 'pending';
+type Step = 'form' | 'verify' | 'pending' | 'role-select';
 
 export function Register({ onBack }: RegisterProps) {
-  const [step, setStep] = useState<Step>('form');
+  const [step, setStep] = useState<Step>('role-select');
   const [regType, setRegType] = useState<'fisica' | 'juridica'>('fisica');
+  const [selectedRole, setSelectedRole] = useState<'ADMIN' | 'STUDENT' | 'TEACHER' | 'SUPER_ADMIN'>('ADMIN');
 
-  const registerAdmin = async (fields: { email: string; senha: string; nome: string }) => {
+  const registerUser = async (fields: { email: string; senha: string; nome: string }) => {
     const { api } = await import('../../services/api');
-    await api.register(fields.email, fields.senha, fields.nome, 'ADMIN');
+    await api.register(fields.email, fields.senha, fields.nome, selectedRole);
     setStep('verify');
   };
 
@@ -723,7 +725,7 @@ export function Register({ onBack }: RegisterProps) {
       <Card className="w-full max-w-lg">
         <CardHeader>
           <div className="flex items-center gap-2 mb-1">
-            {step === 'form' && (
+            {(step === 'form' || step === 'role-select') && (
               <button
                 onClick={onBack}
                 className="text-gray-400 hover:text-gray-700 transition-colors"
@@ -732,17 +734,57 @@ export function Register({ onBack }: RegisterProps) {
               </button>
             )}
             <CardTitle className="text-xl">
-              {step === 'form' && 'Criar conta de Administrador'}
+              {step === 'role-select' && 'Escolha seu perfil'}
+              {step === 'form' && `Criar conta - ${selectedRole === 'ADMIN' ? 'Administrador' : selectedRole === 'SUPER_ADMIN' ? 'Super Administrador' : selectedRole === 'STUDENT' ? 'Estudante' : 'Professor'}`}
               {step === 'verify' && 'Verificar contato'}
               {step === 'pending' && 'Solicitação enviada'}
             </CardTitle>
           </div>
+          {step === 'role-select' && (
+            <CardDescription>Selecione o tipo de usuário que deseja criar</CardDescription>
+          )}
           {step === 'form' && (
-            <CardDescription>Preencha os dados para solicitar acesso ao sistema</CardDescription>
+            <CardDescription>Preencha os dados para criar sua conta</CardDescription>
           )}
         </CardHeader>
 
         <CardContent>
+          {step === 'role-select' && (
+            <div className="grid grid-cols-1 gap-3">
+              <button
+                onClick={() => { setSelectedRole('SUPER_ADMIN'); setStep('form'); }}
+                className="p-4 border-2 border-gray-200 rounded-lg hover:border-red-600 hover:bg-red-50 transition-colors text-left"
+              >
+                <div className="flex items-center gap-2">
+                  <ShieldAlert className="size-5 text-red-600" />
+                  <p className="font-semibold text-gray-900">Super Administrador</p>
+                </div>
+                <p className="text-sm text-gray-600 mt-1">Acesso total ao sistema</p>
+              </button>
+              <button
+                onClick={() => { setSelectedRole('ADMIN'); setStep('form'); }}
+                className="p-4 border-2 border-gray-200 rounded-lg hover:border-purple-600 hover:bg-purple-50 transition-colors text-left"
+              >
+                <p className="font-semibold text-gray-900">Administrador</p>
+                <p className="text-sm text-gray-600 mt-1">Gerencie a escola e todos os usuários</p>
+              </button>
+              <button
+                onClick={() => { setSelectedRole('TEACHER'); setStep('form'); }}
+                className="p-4 border-2 border-gray-200 rounded-lg hover:border-purple-600 hover:bg-purple-50 transition-colors text-left"
+              >
+                <p className="font-semibold text-gray-900">Professor</p>
+                <p className="text-sm text-gray-600 mt-1">Gerencie turmas e estudantes</p>
+              </button>
+              <button
+                onClick={() => { setSelectedRole('STUDENT'); setStep('form'); }}
+                className="p-4 border-2 border-gray-200 rounded-lg hover:border-purple-600 hover:bg-purple-50 transition-colors text-left"
+              >
+                <p className="font-semibold text-gray-900">Estudante</p>
+                <p className="text-sm text-gray-600 mt-1">Acesse suas aulas e tarefas</p>
+              </button>
+            </div>
+          )}
+
           {step === 'form' && (
             <>
               <Tabs value={regType} onValueChange={(v) => setRegType(v as 'fisica' | 'juridica')}>
@@ -759,7 +801,7 @@ export function Register({ onBack }: RegisterProps) {
 
                 <div className="max-h-[60vh] overflow-y-auto pr-1">
                   <TabsContent value="fisica">
-                    <FisicaForm onSubmit={registerAdmin} />
+                    <FisicaForm onSubmit={registerUser} />
                   </TabsContent>
                   <TabsContent value="juridica">
                     <JuridicaForm onSubmit={() => setStep('verify')} />
