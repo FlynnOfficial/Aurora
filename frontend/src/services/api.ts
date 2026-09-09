@@ -17,12 +17,62 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   return body as T;
 }
 
+// Helper functions for localStorage-based auth
+function findUserByEmail(email: string) {
+  // Check super admins FIRST (highest priority)
+  const superAdmins = JSON.parse(localStorage.getItem('super_admins') || '[]');
+  const superAdmin = superAdmins.find((a: any) => a.email?.toLowerCase() === email.toLowerCase());
+  if (superAdmin) return { ...superAdmin, userType: 'SUPER_ADMIN' };
+
+  // Check admins
+  const admins = JSON.parse(localStorage.getItem('admins') || '[]');
+  const admin = admins.find((a: any) => a.email?.toLowerCase() === email.toLowerCase());
+  if (admin) return { ...admin, userType: 'ADMIN' };
+
+  // Check teachers
+  const teachers = JSON.parse(localStorage.getItem('teachers') || '[]');
+  const teacher = teachers.find((t: any) => t.email?.toLowerCase() === email.toLowerCase());
+  if (teacher) return { ...teacher, userType: 'TEACHER' };
+
+  // Check students
+  const students = JSON.parse(localStorage.getItem('students') || '[]');
+  const student = students.find((s: any) => s.email?.toLowerCase() === email.toLowerCase());
+  if (student) return { ...student, userType: 'STUDENT' };
+
+  return null;
+}
+
+function loginLocal(email: string, password: string) {
+  const user = findUserByEmail(email);
+  console.log('DEBUG - Trying to login:', { email, password, foundUser: user });
+  if (!user || user.password !== password) {
+    console.log('DEBUG - Login failed. User found:', !!user, 'Password match:', user?.password === password);
+    throw new Error('E-mail ou senha incorretos');
+  }
+
+  const token = btoa(`${email}:${password}`);
+  return {
+    accessToken: token,
+    userId: user.id,
+    name: user.name,
+    email: user.email,
+    role: user.userType,
+  };
+}
+
 export const api = {
   // Auth endpoints
-  login: (email: string, password: string) => request('/auth/login', {
-      method: 'POST',
-      body: JSON.stringify({ email, password }),
-    }),
+  login: async (email: string, password: string) => {
+    try {
+      return await request('/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({ email, password }),
+      });
+    } catch (err) {
+      // Fallback to localStorage
+      return loginLocal(email, password);
+    }
+  },
 
   register: (email: string, password: string, name: string, role: string) => request('/auth/register', {
       method: 'POST',

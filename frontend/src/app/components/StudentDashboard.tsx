@@ -204,9 +204,11 @@ function ActivitiesPage({ onOpen }: { onOpen: (a: Activity) => void }) {
     items: mockActivities.filter((a) => a.subject === subject),
   })).filter((group) => group.items.length > 0);
 
-  const pendingCount = mockActivities.filter((a) => a.status === 'pending').length;
-  const submittedCount = mockActivities.filter((a) => a.status === 'submitted').length;
-  const gradedCount = mockActivities.filter((a) => a.status === 'graded').length;
+  const now = new Date();
+  const pendingCount = allActivities.filter((a) => a.status === 'pending' && new Date(a.dueDate) >= now).length;
+  const encerradoCount = allActivities.filter((a) => a.status === 'pending' && new Date(a.dueDate) < now).length;
+  const submittedCount = allActivities.filter((a) => a.status === 'submitted').length;
+  const gradedCount = allActivities.filter((a) => a.status === 'graded').length;
 
   return (
     <div className="space-y-6">
@@ -223,7 +225,11 @@ function ActivitiesPage({ onOpen }: { onOpen: (a: Activity) => void }) {
         </div>
         <div className="flex items-center gap-1.5 bg-blue-50 border border-blue-200 rounded-full px-3 py-1 text-xs text-blue-800">
           <CheckCircle className="size-3" />
-          {submittedCount} entregues
+                  <div className="flex items-center gap-1.5 bg-red-50 border border-red-200 rounded-full px-3 py-1 text-xs text-red-800">
+          <AlertCircle className="size-3" />
+          {encerradoCount} encerradas
+        </div>
+        {submittedCount} entregues
         </div>
         <div className="flex items-center gap-1.5 bg-green-50 border border-green-200 rounded-full px-3 py-1 text-xs text-green-800">
           <Star className="size-3" />
@@ -276,7 +282,7 @@ function ActivitiesPage({ onOpen }: { onOpen: (a: Activity) => void }) {
                           {activity.grade !== undefined && (
                             <span className="text-sm font-semibold text-green-700">{activity.grade.toFixed(1)}</span>
                           )}
-                          <Badge className={`${meta.color} text-white text-xs`}>{meta.label}</Badge>
+                          <Badge className={`${isPastDue ? 'bg-red-500' : meta.color} text-white text-xs`}>{isPastDue ? 'Encerrado' : meta.label}</Badge>
                           <ChevronRight className="size-4 text-gray-300 group-hover:text-gray-500 transition-colors" />
                         </div>
                       </div>
@@ -303,7 +309,9 @@ export function StudentDashboard({ user, onLogout }: StudentDashboardProps) {
   const overallAverage =
     student.grades.reduce((sum, g) => sum + g.average, 0) / student.grades.length;
 
-  const pendingCount = mockActivities.filter((a) => a.status === 'pending').length;
+  const now = new Date();
+  const pendingCount = allActivities.filter((a) => a.status === 'pending' && new Date(a.dueDate) >= now).length;
+  const encerradoCount = allActivities.filter((a) => a.status === 'pending' && new Date(a.dueDate) < now).length;
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -474,9 +482,9 @@ export function StudentDashboard({ user, onLogout }: StudentDashboardProps) {
                                   <TableCell>
                                     <span
                                       className={`font-medium ${
-                                        g.grade >= 7
+                                        g.grade > 6
                                           ? 'text-green-600'
-                                          : g.grade >= 5
+                                          : g.grade === 6
                                           ? 'text-yellow-600'
                                           : 'text-red-600'
                                       }`}
@@ -519,3 +527,5 @@ export function StudentDashboard({ user, onLogout }: StudentDashboardProps) {
     </div>
   );
 }
+
+

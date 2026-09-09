@@ -34,6 +34,9 @@ import {
   CheckCircle,
   ArrowLeft,
   KeyRound,
+  FileText,
+  Eye,
+  Calendar,
 } from 'lucide-react';
 import { ChangePasswordModal } from './ChangePasswordModal';
 import { mockStudents, mockTeachers, mockActivities, Activity, Question } from '../data/mockData';
@@ -43,7 +46,7 @@ interface TeacherDashboardProps {
   onLogout: () => void;
 }
 
-type Page = 'dashboard' | 'create' | 'grade';
+type Page = 'dashboard' | 'create' | 'grade' | 'myActivities';
 
 // ── Types for activity creation ───────────────────────────────────────────────
 
@@ -53,9 +56,23 @@ interface DraftQuestion {
   statement: string;
   options: { id: string; text: string }[];
   placeholder: string;
+  correctAnswer?: string; // for multiple choice: option id, for essay: free text
 }
 
 const OPTION_LETTERS = ['a', 'b', 'c', 'd', 'e'];
+
+const ACTIVITY_TEMPLATES = [
+  'Prova Bimestral',
+  'Lista de Exercícios',
+  'Trabalho em Grupo',
+  'Redação',
+  'Quiz',
+  'Pesquisa',
+  'Projeto',
+  'Avaliação',
+  'Recuperação',
+  'Desafio',
+];
 
 function newQuestion(type: 'multiple_choice' | 'essay'): DraftQuestion {
   return {
@@ -68,6 +85,142 @@ function newQuestion(type: 'multiple_choice' | 'essay'): DraftQuestion {
         : [],
     placeholder: '',
   };
+}
+
+// ── View Activities page ──────────────────────────────────────────────────────
+
+function MyActivitiesPage({ teacher }: { teacher: typeof mockTeachers[0] }) {
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  // Filter activities from mockData + localStorage
+  const mockTeacherActivities = mockActivities.filter((a) => a.teacher === teacher.name);
+  const localActivities = JSON.parse(localStorage.getItem('activities') || '[]').filter((a: any) => a.teacher === teacher.name);
+  const teacherActivities = [...mockTeacherActivities, ...localActivities];
+
+  if (teacherActivities.length === 0) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h2 className="text-lg font-semibold">Minhas Atividades</h2>
+          <p className="text-sm text-gray-500">Visualize todas as atividades que você criou</p>
+        </div>
+        <div className="text-center py-16 text-gray-400">
+          <FileText className="size-10 mx-auto mb-3 opacity-40" />
+          <p className="text-sm">Você ainda não criou nenhuma atividade.</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-lg font-semibold">Minhas Atividades</h2>
+        <p className="text-sm text-gray-500">Você criou {teacherActivities.length} atividade(s)</p>
+      </div>
+
+      <div className="space-y-3">
+        {teacherActivities.map((activity) => {
+          const isExpanded = expandedId === activity.id;
+          const statusColor =
+            activity.status === 'pending'
+              ? 'bg-gray-100 border-gray-200'
+              : activity.status === 'submitted'
+              ? 'bg-blue-50 border-blue-200'
+              : 'bg-green-50 border-green-200';
+
+          const statusBadge =
+            activity.status === 'pending'
+              ? 'bg-gray-500'
+              : activity.status === 'submitted'
+              ? 'bg-blue-500'
+              : 'bg-green-500';
+
+          return (
+            <Card key={activity.id} className={`border transition-all ${statusColor}`}>
+              <div
+                onClick={() => setExpandedId(isExpanded ? null : activity.id)}
+                className="p-4 cursor-pointer hover:bg-white/50 transition-colors"
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-sm font-semibold">{activity.title}</h3>
+                    <div className="flex items-center gap-2 mt-2 text-xs text-gray-600">
+                      <Calendar className="size-3.5" />
+                      Entrega: {new Date(activity.dueDate).toLocaleDateString('pt-BR')}
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {activity.questions.length} questão(ões)
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-3 shrink-0">
+                    <Badge className={`text-white ${statusBadge}`}>
+                      {activity.status === 'pending'
+                        ? 'Aguardando'
+                        : activity.status === 'submitted'
+                        ? 'Entregue'
+                        : 'Corrigida'}
+                    </Badge>
+                    <Eye className="size-4 text-gray-400" />
+                  </div>
+                </div>
+              </div>
+
+              {isExpanded && (
+                <div className="border-t bg-white p-4 space-y-4">
+                  {activity.description && (
+                    <div>
+                      <p className="text-xs font-semibold text-gray-600 mb-1">Descrição:</p>
+                      <p className="text-sm text-gray-700">{activity.description}</p>
+                    </div>
+                  )}
+
+                  <div>
+                    <p className="text-xs font-semibold text-gray-600 mb-2">Questões:</p>
+                    <div className="space-y-3">
+                      {activity.questions.map((q, idx) => (
+                        <div
+                          key={q.id}
+                          className="bg-gray-50 p-3 rounded-lg border border-gray-200"
+                        >
+                          <p className="text-xs font-semibold text-indigo-600 mb-1">
+                            Questão {idx + 1} — {q.type === 'multiple_choice' ? 'Múltipla Escolha' : 'Dissertativa'}
+                          </p>
+                          <p className="text-sm text-gray-700 mb-2">{q.statement}</p>
+
+                          {q.type === 'multiple_choice' && (
+                            <div className="space-y-1.5 mb-2">
+                              <p className="text-xs text-gray-600">Alternativas:</p>
+                              {q.options.map((opt) => (
+                                <div key={opt.id} className="flex items-start gap-2 text-xs">
+                                  <span className="font-semibold text-gray-500 uppercase">
+                                    {opt.id}.
+                                  </span>
+                                  <span className="text-gray-700">{opt.text}</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+
+                          {q.type === 'multiple_choice' && 'correctAnswer' in q && q.correctAnswer && (
+                            <div className="bg-green-50 border border-green-200 rounded p-2">
+                              <p className="text-xs font-semibold text-green-700">
+                                ✓ Resposta Correta: Alternativa {q.correctAnswer.toUpperCase()}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </Card>
+          );
+        })}
+      </div>
+    </div>
+  );
 }
 
 // ── Create Activity page ──────────────────────────────────────────────────────
@@ -122,6 +275,24 @@ function CreateActivityPage({ teacher }: { teacher: typeof mockTeachers[0] }) {
 
   const handleSave = () => {
     if (!title.trim() || !dueDate || questions.length === 0) return;
+    const newActivity = {
+      id: crypto.randomUUID(),
+      title: title.trim(),
+      subject: teacher.subject,
+      teacher: teacher.name,
+      description: description.trim(),
+      dueDate,
+      status: 'pending' as const,
+      questions: questions.map(q => {
+        if (q.type === 'multiple_choice') {
+          return { type: 'multiple_choice', id: q.id, statement: q.statement, options: q.options, correctAnswer: q.correctAnswer };
+        }
+        return { type: 'essay', id: q.id, statement: q.statement, placeholder: q.placeholder };
+      })
+    };
+    const activities = JSON.parse(localStorage.getItem('activities') || '[]');
+    activities.push(newActivity);
+    localStorage.setItem('activities', JSON.stringify(activities));
     setSaved(true);
   };
 
@@ -176,7 +347,9 @@ function CreateActivityPage({ teacher }: { teacher: typeof mockTeachers[0] }) {
                 </SelectTrigger>
                 <SelectContent>
                   {teacher.classes.map((cls) => (
-                    <SelectItem key={cls} value={cls}>{cls}</SelectItem>
+                    <SelectItem key={cls} value={cls}>
+                      {cls}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -193,12 +366,29 @@ function CreateActivityPage({ teacher }: { teacher: typeof mockTeachers[0] }) {
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="title">Título</Label>
-            <Input
-              id="title"
-              placeholder="Ex: Prova Bimestral — Funções"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-            />
+            <div className="flex gap-2">
+              <Select value="" onValueChange={(v) => {
+                if (v) setTitle(v);
+              }}>
+                <SelectTrigger className="w-44">
+                  <SelectValue placeholder="Templates" />
+                </SelectTrigger>
+                <SelectContent>
+                  {ACTIVITY_TEMPLATES.map((tmpl) => (
+                    <SelectItem key={tmpl} value={tmpl}>
+                      {tmpl}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Input
+                id="title"
+                placeholder="Ex: Prova Bimestral — Funções"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                className="flex-1"
+              />
+            </div>
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="desc">Descrição / instrução (opcional)</Label>
@@ -235,6 +425,7 @@ function CreateActivityPage({ teacher }: { teacher: typeof mockTeachers[0] }) {
                             v === 'multiple_choice'
                               ? OPTION_LETTERS.slice(0, 4).map((id) => ({ id, text: '' }))
                               : [],
+                          correctAnswer: undefined,
                         })
                       }
                     >
@@ -269,38 +460,69 @@ function CreateActivityPage({ teacher }: { teacher: typeof mockTeachers[0] }) {
                 </div>
 
                 {q.type === 'multiple_choice' && (
-                  <div className="space-y-2">
+                  <div className="space-y-3">
+                    <div className="space-y-2">
+                      <Label className="text-xs">Resposta Correta</Label>
+                      <Select value={q.correctAnswer ?? ''} onValueChange={(v) => updateQuestion(q.id, { correctAnswer: v })}>
+                        <SelectTrigger className="h-8 text-xs">
+                          <SelectValue placeholder="Selecione a resposta correta" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {q.options.map((opt) => (
+                            <SelectItem key={opt.id} value={opt.id}>
+                              Alternativa {opt.id.toUpperCase()}: {opt.text || '(vazio)'}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
                     <Label className="text-xs">Alternativas</Label>
-                    {q.options.map((opt) => (
-                      <div key={opt.id} className="flex items-center gap-2">
-                        <span className="size-6 rounded-full border-2 border-gray-300 flex items-center justify-center text-xs font-bold text-gray-500 shrink-0">
-                          {opt.id.toUpperCase()}
-                        </span>
-                        <Input
-                          placeholder={`Alternativa ${opt.id.toUpperCase()}`}
-                          value={opt.text}
-                          onChange={(e) => updateOption(q.id, opt.id, e.target.value)}
-                          className="text-sm h-8"
-                        />
-                        {q.options.length > 2 && (
-                          <button
-                            onClick={() => removeOption(q.id, opt.id)}
-                            className="text-gray-300 hover:text-red-400 transition-colors shrink-0"
+                    <div className="space-y-2">
+                      {q.options.map((opt) => (
+                        <div
+                          key={opt.id}
+                          className={`flex items-center gap-2 p-2 rounded transition-all ${
+                            q.correctAnswer === opt.id
+                              ? 'bg-green-50 border-2 border-green-400'
+                              : 'border-2 border-transparent'
+                          }`}
+                        >
+                          <span
+                            className={`size-6 rounded-full border-2 flex items-center justify-center text-xs font-bold shrink-0 ${
+                              q.correctAnswer === opt.id
+                                ? 'border-green-400 bg-green-100 text-green-700'
+                                : 'border-gray-300 text-gray-500'
+                            }`}
                           >
-                            <Trash2 className="size-3.5" />
-                          </button>
-                        )}
-                      </div>
-                    ))}
-                    {q.options.length < 5 && (
-                      <button
-                        onClick={() => addOption(q.id)}
-                        className="flex items-center gap-1.5 text-xs text-indigo-500 hover:text-indigo-700 transition-colors mt-1"
-                      >
-                        <Plus className="size-3.5" />
-                        Adicionar alternativa
-                      </button>
-                    )}
+                            {opt.id.toUpperCase()}
+                          </span>
+                          <Input
+                            placeholder={`Alternativa ${opt.id.toUpperCase()}`}
+                            value={opt.text}
+                            onChange={(e) => updateOption(q.id, opt.id, e.target.value)}
+                            className="text-sm h-8"
+                          />
+                          {q.options.length > 2 && (
+                            <button
+                              onClick={() => removeOption(q.id, opt.id)}
+                              className="text-gray-300 hover:text-red-400 transition-colors shrink-0"
+                            >
+                              <Trash2 className="size-3.5" />
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                      {q.options.length < 5 && (
+                        <button
+                          onClick={() => addOption(q.id)}
+                          className="flex items-center gap-1.5 text-xs text-indigo-500 hover:text-indigo-700 transition-colors mt-1"
+                        >
+                          <Plus className="size-3.5" />
+                          Adicionar alternativa
+                        </button>
+                      )}
+                    </div>
                   </div>
                 )}
 
@@ -323,11 +545,21 @@ function CreateActivityPage({ teacher }: { teacher: typeof mockTeachers[0] }) {
 
       {/* Add question buttons */}
       <div className="flex gap-2 flex-wrap">
-        <Button variant="outline" size="sm" onClick={() => addQuestion('multiple_choice')} className="flex items-center gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => addQuestion('multiple_choice')}
+          className="flex items-center gap-2"
+        >
           <PlusCircle className="size-4" />
           Múltipla Escolha
         </Button>
-        <Button variant="outline" size="sm" onClick={() => addQuestion('essay')} className="flex items-center gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => addQuestion('essay')}
+          className="flex items-center gap-2"
+        >
           <PlusCircle className="size-4" />
           Dissertativa
         </Button>
@@ -348,7 +580,7 @@ function CreateActivityPage({ teacher }: { teacher: typeof mockTeachers[0] }) {
   );
 }
 
-// ── Grade Activities page ─────────────────────────────────────────────────────
+// ── Grade Activities page ──────────────────────────────────────────────
 
 function GradeActivitiesPage({ teacher }: { teacher: typeof mockTeachers[0] }) {
   const [selectedClass, setSelectedClass] = useState(teacher.classes[0]);
@@ -388,7 +620,9 @@ function GradeActivitiesPage({ teacher }: { teacher: typeof mockTeachers[0] }) {
         </button>
 
         <div>
-          <p className="text-xs text-gray-500 mb-0.5">{selectedClass} • {teacher.subject}</p>
+          <p className="text-xs text-gray-500 mb-0.5">
+            {selectedClass} • {teacher.subject}
+          </p>
           <h2 className="text-lg font-semibold">{openActivity.title}</h2>
           <p className="text-sm text-gray-500 mt-0.5">
             Entrega: {new Date(openActivity.dueDate).toLocaleDateString('pt-BR')}
@@ -474,7 +708,9 @@ function GradeActivitiesPage({ teacher }: { teacher: typeof mockTeachers[0] }) {
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <h2 className="text-lg font-semibold">Corrigir Atividades</h2>
-          <p className="text-sm text-gray-500">Selecione a turma e corrija as atividades entregues</p>
+          <p className="text-sm text-gray-500">
+            Selecione a turma e corrija as atividades entregues
+          </p>
         </div>
         <div className="w-48">
           <Select value={selectedClass} onValueChange={setSelectedClass}>
@@ -483,7 +719,9 @@ function GradeActivitiesPage({ teacher }: { teacher: typeof mockTeachers[0] }) {
             </SelectTrigger>
             <SelectContent>
               {teacher.classes.map((cls) => (
-                <SelectItem key={cls} value={cls}>{cls}</SelectItem>
+                <SelectItem key={cls} value={cls}>
+                  {cls}
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -571,7 +809,12 @@ export function TeacherDashboard({ user, onLogout }: TeacherDashboardProps) {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => setShowChangePwd(true)} className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowChangePwd(true)}
+              className="flex items-center gap-2"
+            >
               <KeyRound className="size-4" />
               Trocar Senha
             </Button>
@@ -592,6 +835,7 @@ export function TeacherDashboard({ user, onLogout }: TeacherDashboardProps) {
             [
               { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
               { id: 'create', label: 'Criar Atividade', icon: PlusCircle },
+              { id: 'myActivities', label: 'Minhas Atividades', icon: FileText },
               { id: 'grade', label: 'Corrigir Atividades', icon: ClipboardCheck, badge: toCorrectCount },
             ] as const
           ).map(({ id, label, icon: Icon, badge }) => (
@@ -664,7 +908,9 @@ export function TeacherDashboard({ user, onLogout }: TeacherDashboardProps) {
                   <Tabs defaultValue={teacher.classes[0]}>
                     <TabsList className="mb-4">
                       {teacher.classes.map((cls) => (
-                        <TabsTrigger key={cls} value={cls}>{cls}</TabsTrigger>
+                        <TabsTrigger key={cls} value={cls}>
+                          {cls}
+                        </TabsTrigger>
                       ))}
                     </TabsList>
 
@@ -706,7 +952,15 @@ export function TeacherDashboard({ user, onLogout }: TeacherDashboardProps) {
                                       <TableCell>{student.enrollment}</TableCell>
                                       <TableCell>
                                         {sg ? (
-                                          <span className={`font-medium ${sg.average >= 7 ? 'text-green-600' : sg.average >= 5 ? 'text-yellow-600' : 'text-red-600'}`}>
+                                          <span
+                                            className={`font-medium ${
+                                              sg.average >= 7
+                                                ? 'text-green-600'
+                                                : sg.average >= 5
+                                                ? 'text-yellow-600'
+                                                : 'text-red-600'
+                                            }`}
+                                          >
                                             {sg.average.toFixed(1)}
                                           </span>
                                         ) : (
@@ -742,6 +996,9 @@ export function TeacherDashboard({ user, onLogout }: TeacherDashboardProps) {
 
           {/* ── Create activity ── */}
           {page === 'create' && <CreateActivityPage teacher={teacher} />}
+
+          {/* ── My activities ── */}
+          {page === 'myActivities' && <MyActivitiesPage teacher={teacher} />}
 
           {/* ── Grade activities ── */}
           {page === 'grade' && <GradeActivitiesPage teacher={teacher} />}

@@ -12,14 +12,12 @@ import {
 import {
   LogOut, Users, GraduationCap, BookOpen, ShieldCheck, TrendingUp,
   AlertCircle, CheckCircle, Plus, X, Copy, KeyRound,
-  ChevronDown, FlaskConical,
+  ChevronDown, FlaskConical, Crown,
 } from 'lucide-react';
 import { ChangePasswordModal } from './ChangePasswordModal';
 import { mockStudents, mockTeachers, mockAdmins } from '../data/mockData';
 
 interface AdminDashboardProps { user: any; onLogout: () => void; }
-
-// ── Constants ─────────────────────────────────────────────────────────────────
 
 const DEFAULT_SUBJECTS = [
   'Matemática', 'Português', 'História', 'Ciências', 'Educação Física',
@@ -32,8 +30,6 @@ const ALL_CLASSES = [
   '8º Ano A', '8º Ano B', '9º Ano A', '9º Ano B',
 ];
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
 function generatePassword() {
   const upper = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
   const lower = 'abcdefghijklmnopqrstuvwxyz';
@@ -45,9 +41,6 @@ function generatePassword() {
   for (let i = 0; i < 6; i++) base.push(rand(all));
   return base.sort(() => Math.random() - 0.5).join('');
 }
-
-
-// ── Reusable: MultiSelect checkbox dropdown ────────────────────────────────────
 
 function MultiSelect({
   label, options, selected, onChange,
@@ -87,8 +80,6 @@ function MultiSelect({
   );
 }
 
-// ── Reusable: Generated password display ─────────────────────────────────────
-
 function GeneratedPasswordBox({ password }: { password: string }) {
   const [copied, setCopied] = useState(false);
   const copy = () => {
@@ -111,8 +102,6 @@ function GeneratedPasswordBox({ password }: { password: string }) {
   );
 }
 
-// ── Add Teacher panel ─────────────────────────────────────────────────────────
-
 interface NewTeacher {
   id: string; registro: string; name: string; email: string;
   subjects: string[]; classes: string[]; password: string;
@@ -131,9 +120,9 @@ function AddTeacherPanel({
 
   const handleSave = () => {
     const errs: Record<string, string> = {};
-    if (!fields.registro.trim()) errs.registro = 'Obrigatório';
-    if (!fields.name.trim()) errs.name = 'Obrigatório';
-    if (!fields.email.includes('@')) errs.email = 'E-mail inválido';
+    if (!fields.registro.trim()) errs.registro = 'Obrigatorio';
+    if (!fields.name.trim()) errs.name = 'Obrigatorio';
+    if (!fields.email.includes('@')) errs.email = 'E-mail invalido';
     if (subjects.length === 0) errs.subjects = 'Selecione ao menos uma disciplina';
     if (classes.length === 0) errs.classes = 'Selecione ao menos uma turma';
     if (Object.keys(errs).length > 0) { setErrors(errs); return; }
@@ -154,14 +143,14 @@ function AddTeacherPanel({
         {!created ? (
           <>
             <div className="space-y-1">
-              <Label className="text-xs">Número de Registro *</Label>
+              <Label className="text-xs">Numero de Registro *</Label>
               <Input placeholder="REG-0001" value={fields.registro} onChange={(e) => set('registro', e.target.value)}
                 className={errors.registro ? 'border-red-400' : ''} />
               {errors.registro && <p className="text-xs text-red-500">{errors.registro}</p>}
             </div>
             <div className="space-y-1">
               <Label className="text-xs">Nome Completo *</Label>
-              <Input placeholder="Prof. João da Silva" value={fields.name} onChange={(e) => set('name', e.target.value)}
+              <Input placeholder="Prof. Joao da Silva" value={fields.name} onChange={(e) => set('name', e.target.value)}
                 className={errors.name ? 'border-red-400' : ''} />
               {errors.name && <p className="text-xs text-red-500">{errors.name}</p>}
             </div>
@@ -198,7 +187,7 @@ function AddTeacherPanel({
             </div>
             <GeneratedPasswordBox password={created.password} />
             <p className="text-xs text-amber-600 font-medium">
-              ⚠ Envie a senha acima ao professor por e-mail antes de fechar.
+              Envie a senha acima ao professor por e-mail antes de fechar.
             </p>
             <Button variant="outline" className="w-full" onClick={onClose}>Fechar</Button>
           </div>
@@ -207,8 +196,6 @@ function AddTeacherPanel({
     </div>
   );
 }
-
-// ── Add Student panel ─────────────────────────────────────────────────────────
 
 interface NewStudent {
   id: string; ra: string; name: string; email: string; turma: string; password: string;
@@ -223,9 +210,9 @@ function AddStudentPanel({ onAdd, onClose }: { onAdd: (s: NewStudent) => void; o
 
   const handleSave = () => {
     const errs: Record<string, string> = {};
-    if (!fields.ra.trim()) errs.ra = 'Obrigatório';
-    if (!fields.name.trim()) errs.name = 'Obrigatório';
-    if (!fields.email.includes('@')) errs.email = 'E-mail inválido';
+    if (!fields.ra.trim()) errs.ra = 'Obrigatorio';
+    if (!fields.name.trim()) errs.name = 'Obrigatorio';
+    if (!fields.email.includes('@')) errs.email = 'E-mail invalido';
     if (!fields.turma) errs.turma = 'Selecione uma turma';
     if (Object.keys(errs).length > 0) { setErrors(errs); return; }
     const s: NewStudent = { id: crypto.randomUUID(), ...fields, password: generatePassword() };
@@ -285,7 +272,7 @@ function AddStudentPanel({ onAdd, onClose }: { onAdd: (s: NewStudent) => void; o
             </div>
             <GeneratedPasswordBox password={created.password} />
             <p className="text-xs text-amber-600 font-medium">
-              ⚠ Envie a senha acima ao aluno por e-mail antes de fechar.
+              Envie a senha acima ao aluno por e-mail antes de fechar.
             </p>
             <Button variant="outline" className="w-full" onClick={onClose}>Fechar</Button>
           </div>
@@ -294,8 +281,6 @@ function AddStudentPanel({ onAdd, onClose }: { onAdd: (s: NewStudent) => void; o
     </div>
   );
 }
-
-// ── Add Admin panel ───────────────────────────────────────────────────────────
 
 interface NewAdmin { id: string; name: string; email: string; role: string; password: string; }
 
@@ -308,9 +293,9 @@ function AddAdminPanel({ onAdd, onClose }: { onAdd: (a: NewAdmin) => void; onClo
 
   const handleSave = () => {
     const errs: Record<string, string> = {};
-    if (!fields.name.trim()) errs.name = 'Obrigatório';
-    if (!fields.email.includes('@')) errs.email = 'E-mail inválido';
-    if (!fields.role.trim()) errs.role = 'Obrigatório';
+    if (!fields.name.trim()) errs.name = 'Obrigatorio';
+    if (!fields.email.includes('@')) errs.email = 'E-mail invalido';
+    if (!fields.role.trim()) errs.role = 'Obrigatorio';
     if (Object.keys(errs).length > 0) { setErrors(errs); return; }
     const a: NewAdmin = { id: crypto.randomUUID(), ...fields, password: generatePassword() };
     setCreated(a);
@@ -341,7 +326,7 @@ function AddAdminPanel({ onAdd, onClose }: { onAdd: (a: NewAdmin) => void; onClo
               {errors.email && <p className="text-xs text-red-500">{errors.email}</p>}
             </div>
             <div className="space-y-1">
-              <Label className="text-xs">Cargo / Função *</Label>
+              <Label className="text-xs">Cargo / Funcao *</Label>
               <Input placeholder="Coordenador(a), Diretor(a)..." value={fields.role}
                 onChange={(e) => set('role', e.target.value)} className={errors.role ? 'border-red-400' : ''} />
               {errors.role && <p className="text-xs text-red-500">{errors.role}</p>}
@@ -359,7 +344,7 @@ function AddAdminPanel({ onAdd, onClose }: { onAdd: (a: NewAdmin) => void; onClo
             </div>
             <GeneratedPasswordBox password={created.password} />
             <p className="text-xs text-amber-600 font-medium">
-              ⚠ Envie a senha acima ao administrador por e-mail antes de fechar.
+              Envie a senha acima ao administrador por e-mail antes de fechar.
             </p>
             <Button variant="outline" className="w-full" onClick={onClose}>Fechar</Button>
           </div>
@@ -369,19 +354,81 @@ function AddAdminPanel({ onAdd, onClose }: { onAdd: (a: NewAdmin) => void; onClo
   );
 }
 
-// ── Main AdminDashboard ───────────────────────────────────────────────────────
+interface NewSuperAdmin { id: string; name: string; email: string; password: string; }
 
-type Modal = { type: 'add_teacher' } | { type: 'add_student' } | { type: 'add_admin' };
+function AddSuperAdminPanel({ onAdd, onClose }: { onAdd: (s: NewSuperAdmin) => void; onClose: () => void }) {
+  const [fields, setFields] = useState({ name: '', email: '' });
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [created, setCreated] = useState<NewSuperAdmin | null>(null);
+
+  const set = (k: string, v: string) => { setFields((p) => ({ ...p, [k]: v })); setErrors((p) => ({ ...p, [k]: '' })); };
+
+  const handleSave = () => {
+    const errs: Record<string, string> = {};
+    if (!fields.name.trim()) errs.name = 'Obrigatorio';
+    if (!fields.email.includes('@')) errs.email = 'E-mail invalido';
+    if (Object.keys(errs).length > 0) { setErrors(errs); return; }
+    const s: NewSuperAdmin = { id: crypto.randomUUID(), ...fields, password: generatePassword() };
+    setCreated(s);
+    onAdd(s);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6 space-y-4"
+        onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between">
+          <p className="font-semibold flex items-center gap-2"><Crown className="size-5 text-red-600" /> Adicionar Super Administrador</p>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-700"><X className="size-4" /></button>
+        </div>
+
+        {!created ? (
+          <>
+            <div className="space-y-1">
+              <Label className="text-xs">Nome Completo *</Label>
+              <Input placeholder="Nome Sobrenome" value={fields.name} onChange={(e) => set('name', e.target.value)}
+                className={errors.name ? 'border-red-400' : ''} />
+              {errors.name && <p className="text-xs text-red-500">{errors.name}</p>}
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">E-mail *</Label>
+              <Input type="email" placeholder="super@escola.com" value={fields.email}
+                onChange={(e) => set('email', e.target.value)} className={errors.email ? 'border-red-400' : ''} />
+              {errors.email && <p className="text-xs text-red-500">{errors.email}</p>}
+            </div>
+            <Button className="w-full bg-red-600 hover:bg-red-700" onClick={handleSave}>
+              Criar Super Administrador
+            </Button>
+          </>
+        ) : (
+          <div className="space-y-3">
+            <div className="bg-gray-50 rounded-lg p-3 space-y-1 text-sm">
+              <p><span className="text-gray-500">Nome:</span> {created.name}</p>
+              <p><span className="text-gray-500">E-mail:</span> {created.email}</p>
+            </div>
+            <GeneratedPasswordBox password={created.password} />
+            <p className="text-xs text-amber-600 font-medium">
+              Envie a senha acima ao super administrador por e-mail antes de fechar.
+            </p>
+            <Button variant="outline" className="w-full" onClick={onClose}>Fechar</Button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+type Modal = { type: 'add_teacher' } | { type: 'add_student' } | { type: 'add_admin' } | { type: 'add_super_admin' };
 
 export function AdminDashboard({ user, onLogout }: AdminDashboardProps) {
   const [activeTab, setActiveTab] = useState('overview');
   const [modal, setModal] = useState<Modal | null>(null);
   const [showChangePwd, setShowChangePwd] = useState(false);
 
-  // Mutable local lists
   const [students, setStudents] = useState(() => mockStudents.map((s) => ({ ...s })));
   const [teachers, setTeachers] = useState(() => mockTeachers.map((t) => ({ ...t })));
   const [admins, setAdmins] = useState(() => mockAdmins.map((a) => ({ ...a })));
+  const [superAdmins, setSuperAdmins] = useState<any[]>(() => JSON.parse(localStorage.getItem('super_admins') || '[]'));
   const [subjects, setSubjects] = useState<string[]>(DEFAULT_SUBJECTS);
   const [newSubject, setNewSubject] = useState('');
   const [subjectError, setSubjectError] = useState('');
@@ -394,9 +441,9 @@ export function AdminDashboard({ user, onLogout }: AdminDashboardProps) {
 
   const addSubject = () => {
     const trimmed = newSubject.trim();
-    if (!trimmed) { setSubjectError('Digite o nome da matéria.'); return; }
+    if (!trimmed) { setSubjectError('Digite o nome da materia.'); return; }
     if (subjects.map((s) => s.toLowerCase()).includes(trimmed.toLowerCase())) {
-      setSubjectError('Essa matéria já existe.'); return;
+      setSubjectError('Essa materia ja existe.'); return;
     }
     setSubjects((p) => [...p, trimmed]);
     setNewSubject('');
@@ -404,35 +451,38 @@ export function AdminDashboard({ user, onLogout }: AdminDashboardProps) {
   };
 
   const removeSubject = (s: string) => {
-    if (DEFAULT_SUBJECTS.includes(s)) return; // protect defaults
+    if (DEFAULT_SUBJECTS.includes(s)) return;
     setSubjects((p) => p.filter((x) => x !== s));
   };
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Modals */}
       {showChangePwd && <ChangePasswordModal onClose={() => setShowChangePwd(false)} />}
       {modal?.type === 'add_teacher' && (
-        <AddTeacherPanel
-          availableSubjects={subjects}
-          onAdd={(t) => setTeachers((p) => [...p, { id: t.id, name: t.name, email: t.email, password: t.password, subject: t.subjects[0], classes: t.classes }])}
+        <AddTeacherPanel availableSubjects={subjects}
+          onAdd={(t) => { const nt = { id: t.id, name: t.name, email: t.email, password: t.password, subject: t.subjects[0], classes: t.classes }; setTeachers(p => [...p, nt]); const tls = JSON.parse(localStorage.getItem('teachers')||'[]'); tls.push(nt); localStorage.setItem('teachers',JSON.stringify(tls)); }}
           onClose={() => setModal(null)}
         />
       )}
       {modal?.type === 'add_student' && (
         <AddStudentPanel
-          onAdd={(s) => setStudents((p) => [...p, { id: s.id, name: s.name, email: s.email, password: s.password, class: s.turma, enrollment: s.ra, grades: [] }])}
+          onAdd={(s) => { const ns = { id: s.id, name: s.name, email: s.email, password: s.password, class: s.turma, enrollment: s.ra, grades: [] }; setStudents(p => [...p, ns]); const sls = JSON.parse(localStorage.getItem('students')||'[]'); sls.push(ns); localStorage.setItem('students',JSON.stringify(sls)); }}
           onClose={() => setModal(null)}
         />
       )}
       {modal?.type === 'add_admin' && (
         <AddAdminPanel
-          onAdd={(a) => setAdmins((p) => [...p, { id: a.id, name: a.name, email: a.email, password: a.password, role: a.role }])}
+          onAdd={(a) => { const na = { id: a.id, name: a.name, email: a.email, password: a.password, role: a.role }; setAdmins(p => [...p, na]); const als = JSON.parse(localStorage.getItem('admins')||'[]'); als.push(na); localStorage.setItem('admins',JSON.stringify(als)); }}
+          onClose={() => setModal(null)}
+        />
+      )}
+      {modal?.type === 'add_super_admin' && (
+        <AddSuperAdminPanel
+          onAdd={(sa) => { setSuperAdmins(p => [...p, sa]); const sals = JSON.parse(localStorage.getItem('super_admins')||'[]'); sals.push(sa); localStorage.setItem('super_admins',JSON.stringify(sals)); }}
           onClose={() => setModal(null)}
         />
       )}
 
-      {/* Header */}
       <header className="bg-white border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
@@ -465,7 +515,6 @@ export function AdminDashboard({ user, onLogout }: AdminDashboardProps) {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -489,7 +538,7 @@ export function AdminDashboard({ user, onLogout }: AdminDashboardProps) {
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm">Média Geral</CardTitle>
+              <CardTitle className="text-sm">Media Geral</CardTitle>
               <TrendingUp className="size-4 text-purple-600" />
             </CardHeader>
             <CardContent>
@@ -499,12 +548,12 @@ export function AdminDashboard({ user, onLogout }: AdminDashboardProps) {
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm">Recuperação</CardTitle>
+              <CardTitle className="text-sm">Recuperacao</CardTitle>
               <AlertCircle className="size-4 text-yellow-500" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl text-yellow-600">{recoveringCount}</div>
-              <p className="text-xs text-gray-500">Situações abertas</p>
+              <p className="text-xs text-gray-500">Situacoes abertas</p>
             </CardContent>
           </Card>
         </div>
@@ -512,7 +561,7 @@ export function AdminDashboard({ user, onLogout }: AdminDashboardProps) {
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="mb-6 flex-wrap h-auto">
             <TabsTrigger value="overview" className="flex items-center gap-2">
-              <BookOpen className="size-4" /> Visão Geral
+              <BookOpen className="size-4" /> Visao Geral
             </TabsTrigger>
             <TabsTrigger value="students" className="flex items-center gap-2">
               <Users className="size-4" /> Alunos
@@ -523,18 +572,20 @@ export function AdminDashboard({ user, onLogout }: AdminDashboardProps) {
             <TabsTrigger value="admins" className="flex items-center gap-2">
               <ShieldCheck className="size-4" /> Administradores
             </TabsTrigger>
+            <TabsTrigger value="super_admins" className="flex items-center gap-2">
+              <Crown className="size-4" /> Super Admin
+            </TabsTrigger>
             <TabsTrigger value="subjects" className="flex items-center gap-2">
-              <FlaskConical className="size-4" /> Matérias
+              <FlaskConical className="size-4" /> Materias
             </TabsTrigger>
           </TabsList>
 
-          {/* ── Overview ── */}
           <TabsContent value="overview">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <Card>
                 <CardHeader>
                   <CardTitle>Desempenho Geral</CardTitle>
-                  <CardDescription>Status de aprovação por disciplina</CardDescription>
+                  <CardDescription>Status de aprovacao por disciplina</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3">
                   <div className="flex items-center justify-between">
@@ -542,7 +593,7 @@ export function AdminDashboard({ user, onLogout }: AdminDashboardProps) {
                     <Badge className="bg-green-500">{approvedCount}</Badge>
                   </div>
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2"><AlertCircle className="size-4 text-yellow-500" /><span className="text-sm">Em Recuperação</span></div>
+                    <div className="flex items-center gap-2"><AlertCircle className="size-4 text-yellow-500" /><span className="text-sm">Em Recuperacao</span></div>
                     <Badge className="bg-yellow-500">{recoveringCount}</Badge>
                   </div>
                   <div className="flex items-center justify-between">
@@ -573,7 +624,6 @@ export function AdminDashboard({ user, onLogout }: AdminDashboardProps) {
             </div>
           </TabsContent>
 
-          {/* ── Students ── */}
           <TabsContent value="students">
             <Card>
               <CardHeader>
@@ -593,9 +643,9 @@ export function AdminDashboard({ user, onLogout }: AdminDashboardProps) {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Aluno</TableHead>
-                      <TableHead>Matrícula / RA</TableHead>
+                      <TableHead>Matricula / RA</TableHead>
                       <TableHead>Turma</TableHead>
-                      <TableHead>Média Geral</TableHead>
+                      <TableHead>Media Geral</TableHead>
                       <TableHead>Status</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -626,7 +676,7 @@ export function AdminDashboard({ user, onLogout }: AdminDashboardProps) {
                           <TableCell>
                             {avg === null ? <Badge variant="outline">Novo</Badge>
                               : hasFailed ? <Badge className="bg-red-500">Reprovado</Badge>
-                              : hasRecovery ? <Badge className="bg-yellow-500">Recuperação</Badge>
+                              : hasRecovery ? <Badge className="bg-yellow-500">Recuperacao</Badge>
                               : <Badge className="bg-green-500">Regular</Badge>}
                           </TableCell>
                         </TableRow>
@@ -638,7 +688,6 @@ export function AdminDashboard({ user, onLogout }: AdminDashboardProps) {
             </Card>
           </TabsContent>
 
-          {/* ── Teachers ── */}
           <TabsContent value="teachers">
             <Card>
               <CardHeader>
@@ -689,7 +738,6 @@ export function AdminDashboard({ user, onLogout }: AdminDashboardProps) {
             </Card>
           </TabsContent>
 
-          {/* ── Admins ── */}
           <TabsContent value="admins">
             <Card>
               <CardHeader>
@@ -732,20 +780,67 @@ export function AdminDashboard({ user, onLogout }: AdminDashboardProps) {
             </Card>
           </TabsContent>
 
-          {/* ── Subjects ── */}
+          <TabsContent value="super_admins">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between flex-wrap gap-3">
+                  <div>
+                    <CardTitle className="flex items-center gap-2"><Crown className="size-5 text-red-600" /> Super Administradores</CardTitle>
+                    <CardDescription>Contas de super administrador do sistema</CardDescription>
+                  </div>
+                  <Button size="sm" className="bg-red-600 hover:bg-red-700 flex items-center gap-2"
+                    onClick={() => setModal({ type: 'add_super_admin' })}>
+                    <Plus className="size-4" /> Adicionar Super Admin
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Super Administrador</TableHead>
+                      <TableHead>E-mail</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {superAdmins.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={2} className="text-center text-gray-500 py-8">
+                          Nenhum super administrador cadastrado
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      superAdmins.map((sa) => (
+                        <TableRow key={sa.id}>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <Avatar className="size-8 bg-red-600"><AvatarFallback className="text-white">{sa.name.split(' ').map((n) => n[0]).join('')}</AvatarFallback></Avatar>
+                              {sa.name}
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-gray-500 text-sm">{sa.email}</TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
           <TabsContent value="subjects">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <Card>
                 <CardHeader>
-                  <CardTitle>Adicionar Matéria</CardTitle>
-                  <CardDescription>Cadastre disciplinas que não estão na lista padrão</CardDescription>
+                  <CardTitle>Adicionar Materia</CardTitle>
+                  <CardDescription>Cadastre disciplinas que nao estao na lista padrao</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3">
                   <div className="space-y-1">
-                    <Label>Nome da matéria</Label>
+                    <Label>Nome da materia</Label>
                     <div className="flex gap-2">
                       <Input
-                        placeholder="Ex: Física, Sociologia, Espanhol..."
+                        placeholder="Ex: Fisica, Sociologia, Espanhol..."
                         value={newSubject}
                         onChange={(e) => { setNewSubject(e.target.value); setSubjectError(''); }}
                         onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addSubject(); } }}
@@ -762,8 +857,8 @@ export function AdminDashboard({ user, onLogout }: AdminDashboardProps) {
 
               <Card>
                 <CardHeader>
-                  <CardTitle>Matérias cadastradas</CardTitle>
-                  <CardDescription>{subjects.length} no total — padrão + personalizadas</CardDescription>
+                  <CardTitle>Materias cadastradas</CardTitle>
+                  <CardDescription>{subjects.length} no total — padrao + personalizadas</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="flex flex-wrap gap-2">

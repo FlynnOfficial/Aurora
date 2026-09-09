@@ -4,7 +4,6 @@
 - Daniel Ferriani de Chico
 - Bruno Romano Kimura
 - João Pedro Braga
-- Thomaz Palma
 - Caíque Carneiro
 ---
 ## Como ligar o sistema
