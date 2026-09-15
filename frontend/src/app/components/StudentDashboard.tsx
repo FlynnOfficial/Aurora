@@ -26,6 +26,7 @@ import {
   ChevronRight,
   Send,
   KeyRound,
+  AlertCircle,
 } from 'lucide-react';
 import { ChangePasswordModal } from './ChangePasswordModal';
 import { mockStudents, mockActivities, Activity, Question } from '../data/mockData';
@@ -205,10 +206,10 @@ function ActivitiesPage({ onOpen }: { onOpen: (a: Activity) => void }) {
   })).filter((group) => group.items.length > 0);
 
   const now = new Date();
-  const pendingCount = allActivities.filter((a) => a.status === 'pending' && new Date(a.dueDate) >= now).length;
-  const encerradoCount = allActivities.filter((a) => a.status === 'pending' && new Date(a.dueDate) < now).length;
-  const submittedCount = allActivities.filter((a) => a.status === 'submitted').length;
-  const gradedCount = allActivities.filter((a) => a.status === 'graded').length;
+  const pendingCount = mockActivities.filter((a) => a.status === 'pending' && new Date(a.dueDate) >= now).length;
+  const encerradoCount = mockActivities.filter((a) => a.status === 'pending' && new Date(a.dueDate) < now).length;
+  const submittedCount = mockActivities.filter((a) => a.status === 'submitted').length;
+  const gradedCount = mockActivities.filter((a) => a.status === 'graded').length;
 
   return (
     <div className="space-y-6">
@@ -225,11 +226,11 @@ function ActivitiesPage({ onOpen }: { onOpen: (a: Activity) => void }) {
         </div>
         <div className="flex items-center gap-1.5 bg-blue-50 border border-blue-200 rounded-full px-3 py-1 text-xs text-blue-800">
           <CheckCircle className="size-3" />
-                  <div className="flex items-center gap-1.5 bg-red-50 border border-red-200 rounded-full px-3 py-1 text-xs text-red-800">
+          {submittedCount} entregues
+        </div>
+        <div className="flex items-center gap-1.5 bg-red-50 border border-red-200 rounded-full px-3 py-1 text-xs text-red-800">
           <AlertCircle className="size-3" />
           {encerradoCount} encerradas
-        </div>
-        {submittedCount} entregues
         </div>
         <div className="flex items-center gap-1.5 bg-green-50 border border-green-200 rounded-full px-3 py-1 text-xs text-green-800">
           <Star className="size-3" />
@@ -310,8 +311,8 @@ export function StudentDashboard({ user, onLogout }: StudentDashboardProps) {
     student.grades.reduce((sum, g) => sum + g.average, 0) / student.grades.length;
 
   const now = new Date();
-  const pendingCount = allActivities.filter((a) => a.status === 'pending' && new Date(a.dueDate) >= now).length;
-  const encerradoCount = allActivities.filter((a) => a.status === 'pending' && new Date(a.dueDate) < now).length;
+  const pendingCount = mockActivities.filter((a) => a.status === 'pending' && new Date(a.dueDate) >= now).length;
+  const encerradoCount = mockActivities.filter((a) => a.status === 'pending' && new Date(a.dueDate) < now).length;
 
   const getStatusBadge = (status: string) => {
     switch (status) {
