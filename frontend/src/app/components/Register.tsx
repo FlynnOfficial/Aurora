@@ -356,7 +356,7 @@ export function Register({ onBack }: RegisterProps) {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
+    <div className="min-h-[100dvh] flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4 sm:p-6">
       <Card className="w-full max-w-lg">
         <CardHeader>
           <div className="flex items-center gap-2 mb-1">

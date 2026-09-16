@@ -436,27 +436,27 @@ export function AdminDashboard({ user, onLogout }: AdminDashboardProps) {
 
       <header className="bg-white border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
               <Avatar className="size-12 bg-purple-600">
                 <AvatarFallback className="text-white">
                   {user.name.split(' ').map((n: string) => n[0]).join('')}
                 </AvatarFallback>
               </Avatar>
-              <div>
-                <h1 className="text-xl">{user.name}</h1>
+              <div className="min-w-0">
+                <h1 className="text-lg sm:text-xl truncate">{user.name}</h1>
                 <div className="flex items-center gap-1 text-sm text-purple-600">
                   <ShieldCheck className="size-3" />
                   <span>{user.role || 'Administrador'}</span>
                 </div>
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" onClick={() => setShowChangePwd(true)} className="flex items-center gap-2">
+            <div className="flex items-center gap-2 ml-auto">
+              <Button variant="outline" size="sm" onClick={() => setShowChangePwd(true)} className="min-h-10 flex items-center gap-2">
                 <KeyRound className="size-4" />
                 Trocar Senha
               </Button>
-              <Button variant="outline" onClick={onLogout} className="flex items-center gap-2">
+              <Button variant="outline" onClick={onLogout} className="min-h-10 flex items-center gap-2">
                 <LogOut className="size-4" />
                 Sair
               </Button>
@@ -467,7 +467,7 @@ export function AdminDashboard({ user, onLogout }: AdminDashboardProps) {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {userError && <p className="mb-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{userError}</p>}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-4 gap-4 mb-8">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm">Alunos</CardTitle>
@@ -511,7 +511,7 @@ export function AdminDashboard({ user, onLogout }: AdminDashboardProps) {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="mb-6 flex-wrap h-auto">
+          <TabsList className="mb-6 max-w-full overflow-x-auto flex-nowrap justify-start h-auto">
             <TabsTrigger value="overview" className="flex items-center gap-2">
               <BookOpen className="size-4" /> Visao Geral
             </TabsTrigger>

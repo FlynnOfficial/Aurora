@@ -74,19 +74,19 @@ function SupportInbox() {
   };
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[18rem_1fr]">
+    <div className="grid gap-4 lg:grid-cols-[18rem_minmax(0,1fr)]">
       <Card>
         <CardHeader><CardTitle className="flex items-center gap-2"><LifeBuoy className="size-5 text-blue-600" />Atendimentos</CardTitle><CardDescription>Histórico aberto e encerrado nos últimos 7 dias.</CardDescription></CardHeader>
-        <CardContent className="space-y-2 max-h-[34rem] overflow-y-auto">
+        <CardContent className="space-y-2 max-h-[24rem] lg:max-h-[34rem] overflow-y-auto">
           {chats.length === 0 && <p className="text-sm text-gray-500">Nenhum atendimento encontrado.</p>}
           {chats.map((chat) => <button key={chat.id} onClick={() => setSelectedId(chat.id)} className={`w-full text-left rounded-md border p-3 ${selectedId === chat.id ? 'border-blue-600 bg-blue-50' : 'border-gray-200 hover:bg-gray-50'}`}><div className="flex justify-between gap-2"><span className="text-sm font-medium truncate">{chat.requester.name}</span><Badge variant={chat.status === 'OPEN' ? 'default' : 'secondary'}>{chat.status === 'OPEN' ? 'Aberto' : 'Encerrado'}</Badge></div><p className="text-xs text-gray-500 truncate">{chat.requester.email}</p><p className="text-xs text-gray-400 mt-1">Atendimento #{chat.id}</p></button>)}
         </CardContent>
       </Card>
       <Card>
         <CardHeader><CardTitle>{selectedChat ? `Atendimento de ${selectedChat.requester.name}` : 'Selecione um atendimento'}</CardTitle>{selectedChat && <CardDescription>{selectedChat.requester.email} · {selectedChat.requester.role}</CardDescription>}</CardHeader>
-        <CardContent>
+        <CardContent className="min-w-0">
           {error && <p className="mb-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
-          {!selectedChat ? <p className="py-16 text-center text-sm text-gray-500">As mensagens do atendimento selecionado aparecerão aqui.</p> : <><div className="h-80 overflow-y-auto space-y-3 rounded-md bg-gray-50 p-4">{selectedChat.messages.map((item) => <div key={item.id} className="rounded-md bg-white border p-3"><p className="text-sm">{item.content}</p><p className="mt-1 text-xs text-gray-400">{item.sender.name} · {new Date(item.createdAt).toLocaleString('pt-BR')}</p></div>)}</div>{selectedChat.status === 'OPEN' && <div className="mt-4 flex gap-2"><Input placeholder="Responder ao atendimento..." value={message} onChange={(event) => setMessage(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') void reply(); }} /><Button onClick={() => void reply()} className="bg-blue-600 hover:bg-blue-700"><Send className="size-4" /></Button><Button variant="outline" onClick={() => void close()}><CheckCircle className="size-4 mr-1" />Encerrar</Button></div>}</>}
+          {!selectedChat ? <p className="py-16 text-center text-sm text-gray-500">As mensagens do atendimento selecionado aparecerão aqui.</p> : <><div className="h-80 overflow-y-auto space-y-3 rounded-md bg-gray-50 p-3 sm:p-4">{selectedChat.messages.map((item) => <div key={item.id} className="rounded-md bg-white border p-3"><p className="text-sm break-words">{item.content}</p><p className="mt-1 text-xs text-gray-400">{item.sender.name} · {new Date(item.createdAt).toLocaleString('pt-BR')}</p></div>)}</div>{selectedChat.status === 'OPEN' && <div className="mt-4 flex flex-col sm:flex-row gap-2"><Input className="min-h-10" placeholder="Responder ao atendimento..." value={message} onChange={(event) => setMessage(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') void reply(); }} /><div className="flex gap-2 sm:shrink-0"><Button onClick={() => void reply()} className="min-h-10 flex-1 sm:flex-none bg-blue-600 hover:bg-blue-700"><Send className="size-4" /></Button><Button variant="outline" onClick={() => void close()} className="min-h-10 flex-1 sm:flex-none"><CheckCircle className="size-4 mr-1" />Encerrar</Button></div></div>}</>}
         </CardContent>
       </Card>
     </div>
@@ -260,25 +260,25 @@ export function SuperAdminDashboard({ user, onLogout }: SuperAdminDashboardProps
 
       {/* Header */}
       <header className="bg-white border-b shrink-0">
-        <div className="px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
+        <div className="px-4 sm:px-6 py-3 sm:py-4 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
             <div className="size-10 bg-purple-700 rounded-full flex items-center justify-center">
               <ShieldCheck className="size-5 text-white" />
             </div>
-            <div>
-              <p className="font-medium text-sm leading-tight">{user.name}</p>
+            <div className="min-w-0">
+              <p className="font-medium text-sm leading-tight truncate max-w-[12rem] sm:max-w-none">{user.name}</p>
               <p className="text-xs text-purple-600 flex items-center gap-1">
                 <ShieldCheck className="size-3" />
                 Super Administrador
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => setShowChangePwd(true)} className="flex items-center gap-2">
+          <div className="flex items-center gap-2 ml-auto">
+            <Button variant="outline" size="sm" onClick={() => setShowChangePwd(true)} className="min-h-10 flex items-center gap-2">
               <KeyRound className="size-4" />
               Trocar Senha
             </Button>
-            <Button variant="outline" size="sm" onClick={onLogout} className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={onLogout} className="min-h-10 flex items-center gap-2">
               <LogOut className="size-4" />
               Sair
             </Button>
@@ -286,15 +286,15 @@ export function SuperAdminDashboard({ user, onLogout }: SuperAdminDashboardProps
         </div>
       </header>
 
-      <main className="flex-1 overflow-y-auto p-6 max-w-5xl mx-auto w-full">
+      <main className="flex-1 overflow-y-auto p-4 sm:p-6 max-w-5xl mx-auto w-full">
         <Tabs defaultValue="registrations">
-          <TabsList className="mb-6">
+          <TabsList className="mb-6 max-w-full overflow-x-auto flex-nowrap justify-start">
             <TabsTrigger value="registrations">Cadastros</TabsTrigger>
             <TabsTrigger value="support"><LifeBuoy className="size-4" />Suporte</TabsTrigger>
           </TabsList>
           <TabsContent value="registrations">
         {/* Stats */}
-        <div className="grid grid-cols-3 gap-4 mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
           <Card>
             <CardContent className="pt-5 pb-4 flex items-center gap-3">
               <Clock className="size-8 text-yellow-500 shrink-0" />

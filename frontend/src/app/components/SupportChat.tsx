@@ -80,17 +80,17 @@ export function SupportChat({ user, userType }: SupportChatProps) {
   };
 
   return (
-    <div className="fixed bottom-4 right-4 z-50">
+    <div className="fixed bottom-3 right-3 sm:bottom-4 sm:right-4 z-50">
       {!isOpen ? (
         <Button aria-label="Abrir suporte" onClick={() => setIsOpen(true)} className="rounded-full size-14 bg-blue-600 hover:bg-blue-700 shadow-lg">
           <LifeBuoy className="size-6" />
         </Button>
       ) : (
-        <Card className="w-[min(92vw,28rem)] shadow-2xl">
+        <Card className="w-[calc(100vw-1.5rem)] sm:w-[min(92vw,28rem)] max-h-[calc(100dvh-1.5rem)] shadow-2xl flex flex-col">
           <CardHeader className="bg-blue-600 text-white rounded-t-lg p-4">
             <div className="flex items-center justify-between">
               <CardTitle className="text-lg flex items-center gap-2"><LifeBuoy className="size-5" />Suporte Aurora</CardTitle>
-              <Button variant="ghost" size="sm" onClick={() => setIsOpen(false)} className="text-white hover:bg-blue-700 h-8 w-8 p-0"><X className="size-4" /></Button>
+              <Button variant="ghost" size="sm" onClick={() => setIsOpen(false)} className="text-white hover:bg-blue-700 min-h-10 min-w-10 p-0"><X className="size-4" /></Button>
             </div>
             <p className="text-xs text-blue-100">Fale com a equipe de suporte. O histórico encerrado fica disponível por 7 dias.</p>
           </CardHeader>
@@ -110,7 +110,7 @@ export function SupportChat({ user, userType }: SupportChatProps) {
                 <div className="flex items-center gap-2"><Badge variant={selectedChat.status === 'OPEN' ? 'default' : 'secondary'}>{selectedChat.status === 'OPEN' ? 'Aberto' : 'Encerrado'}</Badge>{selectedChat.status === 'OPEN' && <Button variant="ghost" size="sm" onClick={closeChat} className="h-7 px-2 text-gray-500"><CheckCircle className="size-3 mr-1" />Encerrar</Button>}</div>
               </div>
             )}
-            <div className="h-72 overflow-y-auto p-4 space-y-3">
+            <div className="min-h-0 h-[clamp(12rem,45dvh,18rem)] overflow-y-auto p-3 sm:p-4 space-y-3">
               {!selectedChat && <p className="text-sm text-gray-500 text-center py-10">Descreva sua dúvida para iniciar um atendimento.</p>}
               {selectedChat?.messages.map((message) => <div key={message.id} className={`flex ${message.sender.id === user.id ? 'justify-end' : 'justify-start'}`}><div className={`max-w-[85%] rounded-lg p-3 ${message.sender.id === user.id ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-900'}`}><p className="text-sm">{message.content}</p><span className="text-[10px] opacity-70 mt-1 block">{message.sender.name} · {formatTime(message.createdAt)}</span></div></div>)}
               <div ref={messagesEndRef} />

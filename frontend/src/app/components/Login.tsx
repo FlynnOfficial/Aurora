@@ -41,7 +41,7 @@ export function Login({ onLogin, onRegister }: LoginProps) {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
+    <div className="min-h-[100dvh] flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4 sm:p-6">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <div className="flex justify-center mb-4">
@@ -49,7 +49,7 @@ export function Login({ onLogin, onRegister }: LoginProps) {
               <GraduationCap className="size-8 text-white" />
             </div>
           </div>
-          <CardTitle className="text-2xl">Aurora</CardTitle>
+          <CardTitle className="text-2xl sm:text-3xl">Aurora</CardTitle>
           <CardDescription>Acesse seu painel com suas credenciais</CardDescription>
         </CardHeader>
 

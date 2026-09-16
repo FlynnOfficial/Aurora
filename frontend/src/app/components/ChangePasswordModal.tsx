@@ -32,11 +32,11 @@ export function ChangePasswordModal({ onClose }: ChangePasswordModalProps) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+      className="fixed inset-0 z-50 flex items-start sm:items-center justify-center overflow-y-auto bg-black/40 p-3 sm:p-4"
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-xl shadow-xl w-full max-w-sm p-6 space-y-4"
+        className="bg-white rounded-xl shadow-xl w-full max-w-sm my-auto p-4 sm:p-6 space-y-4 max-h-[calc(100dvh-1.5rem)] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between">
@@ -44,7 +44,7 @@ export function ChangePasswordModal({ onClose }: ChangePasswordModalProps) {
             <KeyRound className="size-4 text-purple-600" />
             Trocar Senha
           </p>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-700 transition-colors">
+          <button onClick={onClose} className="min-h-10 min-w-10 flex items-center justify-center text-gray-400 hover:text-gray-700 transition-colors">
             <X className="size-4" />
           </button>
         </div>
@@ -75,7 +75,7 @@ export function ChangePasswordModal({ onClose }: ChangePasswordModalProps) {
                 <button
                   type="button"
                   onClick={() => setShowNext((p) => !p)}
-                  className="absolute right-2.5 top-2.5 text-gray-400 hover:text-gray-600"
+                  className="absolute right-1 top-1 min-h-10 min-w-10 flex items-center justify-center text-gray-400 hover:text-gray-600"
                 >
                   {showNext ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
                 </button>
