@@ -1,9 +1,19 @@
+export type UserRole = 'student' | 'teacher' | 'admin' | 'super_admin';
+
+export interface AuthenticatedUser {
+  id: number;
+  name: string;
+  email: string;
+  role: Uppercase<UserRole>;
+}
+
 export interface LoginResponse {
-  token: string;
+  accessToken: string;
+  refreshToken?: string;
   userId: number;
   email: string;
   name: string;
-  role: string;
+  role: Uppercase<UserRole>;
 }
 
 export interface StudentData {

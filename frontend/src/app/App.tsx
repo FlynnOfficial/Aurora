@@ -6,36 +6,38 @@ import { TeacherDashboard } from './components/TeacherDashboard';
 import { AdminDashboard } from './components/AdminDashboard';
 import { SuperAdminDashboard } from './components/SuperAdminDashboard';
 import { SupportChat } from './components/SupportChat';
+import { AuthenticatedUser, UserRole } from '../types';
 
-interface User {
-  name: string;
-  email: string;
-  [key: string]: any;
-}
-
-type UserType = 'student' | 'teacher' | 'admin' | 'super_admin' | null;
+type UserType = UserRole | null;
 type Screen = 'login' | 'register';
+
+interface StoredSession {
+  user: AuthenticatedUser;
+  userType: UserRole;
+}
 
 export default function App() {
   const [screen, setScreen] = useState<Screen>('login');
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<AuthenticatedUser | null>(null);
   const [userType, setUserType] = useState<UserType>(null);
 
   useEffect(() => {
-    // Checa se o usuário já está logado
     const token = localStorage.getItem('token');
-    if (token) {
-      // Restaura a sessão do usuário se necessário
-      const storedUser = localStorage.getItem('user');
-      if (storedUser) {
-        const parsedUser = JSON.parse(storedUser);
-        setUser(parsedUser.user);
-        setUserType(parsedUser.userType);
+    const storedUser = localStorage.getItem('user');
+    if (!token || !storedUser) return;
+
+    try {
+      const session = JSON.parse(storedUser) as StoredSession;
+      if (session.user && session.userType) {
+        setUser(session.user);
+        setUserType(session.userType);
       }
+    } catch {
+      localStorage.removeItem('user');
     }
   }, []);
 
-  const handleLogin = (userData: User, type: 'student' | 'teacher' | 'admin' | 'super_admin') => {
+  const handleLogin = (userData: AuthenticatedUser, type: UserRole) => {
     setUser(userData);
     setUserType(type);
     localStorage.setItem('user', JSON.stringify({ user: userData, userType: type }));

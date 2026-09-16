@@ -4,9 +4,10 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { GraduationCap, Lock, Mail, UserPlus } from 'lucide-react';
+import { AuthenticatedUser, UserRole } from '../../types';
 
 interface LoginProps {
-  onLogin: (user: any, userType: 'student' | 'teacher' | 'admin' | 'super_admin') => void;
+  onLogin: (user: AuthenticatedUser, userType: UserRole) => void;
   onRegister: () => void;
 }
 
@@ -26,12 +27,14 @@ export function Login({ onLogin, onRegister }: LoginProps) {
       localStorage.setItem('token', response.accessToken);
       localStorage.setItem('userId', String(response.userId));
 
-      onLogin({
+      const user: AuthenticatedUser = {
         id: response.userId,
         name: response.name,
         email: response.email,
         role: response.role,
-      }, response.role.toLowerCase() as 'student' | 'teacher' | 'admin' | 'super_admin');
+      };
+
+      onLogin(user, response.role.toLowerCase() as UserRole);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao conectar ao servidor');
     }

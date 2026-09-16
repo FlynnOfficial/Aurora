@@ -30,7 +30,7 @@ import {
   AlertCircle,
 } from 'lucide-react';
 import { ChangePasswordModal } from './ChangePasswordModal';
-import { Activity, Question } from '../data/mockData';
+import { Activity, Question } from '../types/activity';
 import { api } from '../../services/api';
 
 interface StudentDashboardProps {

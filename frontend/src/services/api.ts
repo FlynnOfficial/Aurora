@@ -1,3 +1,5 @@
+import { LoginResponse } from '../types';
+
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080/api';
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
@@ -19,7 +21,7 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 
 export const api = {
   // Auth endpoints
-  login: (email: string, password: string) => request('/auth/login', {
+  login: (email: string, password: string) => request<LoginResponse>('/auth/login', {
     method: 'POST',
     body: JSON.stringify({ email, password }),
   }),

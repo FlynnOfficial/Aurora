@@ -4,12 +4,12 @@
 
 - Java 21
 - Maven 3.9+
-- MySQL 8 ou MariaDB 10.5+
+- PostgreSQL 16+
 
 ## Executar
 
 1. Crie o banco seguindo [../database/README.md](../database/README.md).
-2. Se a senha do banco não for `root`, defina `DB_PASSWORD` no terminal.
+2. Configure `DB_URL`, `DB_USERNAME`, `DB_PASSWORD` e `JWT_SECRET` no ambiente.
 3. Compile e teste:
 
 ```powershell
