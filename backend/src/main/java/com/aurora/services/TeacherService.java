@@ -83,4 +83,15 @@ public class TeacherService {
         teacher.setActive(false);
         teacherRepository.save(teacher);
     }
+
+    public void authorizeUserAccess(Long requesterId, String role, Long targetUserId) throws Exception {
+        User target = userRepository.findById(targetUserId)
+                .orElseThrow(() -> new Exception("Usuário não encontrado"));
+        User requester = userRepository.findById(requesterId)
+                .orElseThrow(() -> new Exception("Usuário não encontrado"));
+        if (!requester.getOrganizationKey().equals(target.getOrganizationKey()) ||
+                (!requesterId.equals(targetUserId) && !"ADMIN".equals(role) && !"SUPER_ADMIN".equals(role))) {
+            throw new Exception("Sem permissão para este usuário");
+        }
+    }
 }

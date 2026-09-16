@@ -1,10 +1,13 @@
 package com.aurora.security;
 
 import com.aurora.utils.JWTUtil;
+import com.aurora.models.User;
+import com.aurora.repositories.UserRepository;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.Cookie;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -13,24 +16,32 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.List;
 
 @Component
 @RequiredArgsConstructor
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final JWTUtil jwtUtil;
+    private final UserRepository userRepository;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
         try {
-            String jwt = getJwtFromRequest(request);
+            String jwt = getCookie(request, "aurora_access");
 
-            if (jwt != null && jwtUtil.isTokenValid(jwt)) {
+            if (jwt != null && jwtUtil.isTokenValid(jwt) && jwtUtil.isAccessToken(jwt)) {
                 String email = jwtUtil.extractEmail(jwt);
                 Long userId = jwtUtil.extractUserId(jwt);
                 String role = jwtUtil.extractRole(jwt);
+                User user = userRepository.findById(userId).orElse(null);
+
+                if (user == null || !Boolean.TRUE.equals(user.getActive()) ||
+                        !user.getEmail().equalsIgnoreCase(email) ||
+                        !user.getRole().name().equals(role)) {
+                    filterChain.doFilter(request, response);
+                    return;
+                }
 
                 UsernamePasswordAuthenticationToken authentication =
                     new UsernamePasswordAuthenticationToken(
@@ -46,7 +57,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 request.setAttribute("role", role);
             }
         } catch (Exception ex) {
-            logger.error("Could not set user authentication in security context", ex);
+            logger.warn("Could not authenticate request with JWT: " + ex.getMessage());
         }
 
         filterChain.doFilter(request, response);
@@ -56,6 +67,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String bearerToken = request.getHeader("Authorization");
         if (bearerToken != null && bearerToken.startsWith("Bearer ")) {
             return bearerToken.substring(7);
+        }
+        return null;
+    }
+
+    private String getCookie(HttpServletRequest request, String name) {
+        Cookie[] cookies = request.getCookies();
+        if (cookies == null) return null;
+        for (Cookie cookie : cookies) {
+            if (name.equals(cookie.getName())) return cookie.getValue();
         }
         return null;
     }

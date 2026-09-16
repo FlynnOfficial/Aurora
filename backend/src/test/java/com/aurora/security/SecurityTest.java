@@ -3,6 +3,7 @@ package com.aurora.security;
 import com.aurora.services.AuthService;
 import com.aurora.utils.InputSanitizer;
 import com.aurora.utils.RateLimitingUtil;
+import com.aurora.utils.JWTUtil;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -19,6 +20,9 @@ public class SecurityTest {
 
     @Autowired
     private RateLimitingUtil rateLimitingUtil;
+
+    @Autowired
+    private JWTUtil jwtUtil;
 
     @Test
     public void testSQLInjectionDetection() {
@@ -57,5 +61,15 @@ public class SecurityTest {
         assertThrows(Exception.class, () -> {
             inputSanitizer.sanitizePassword("123"); // Muito fraca
         });
+    }
+
+    @Test
+    public void testRefreshTokenCannotBeUsedAsAccessToken() {
+        String accessToken = jwtUtil.generateAccessToken(1L, "user@aurora.test", "STUDENT");
+        String refreshToken = jwtUtil.generateRefreshToken(1L, "user@aurora.test");
+
+        assertTrue(jwtUtil.isAccessToken(accessToken));
+        assertFalse(jwtUtil.isAccessToken(refreshToken));
+        assertTrue(jwtUtil.isRefreshToken(refreshToken));
     }
 }

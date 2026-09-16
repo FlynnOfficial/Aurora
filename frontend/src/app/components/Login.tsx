@@ -23,10 +23,6 @@ export function Login({ onLogin, onRegister }: LoginProps) {
       const { api } = await import('../../services/api');
       const response = await api.login(email, password);
 
-      // Store token
-      localStorage.setItem('token', response.accessToken);
-      localStorage.setItem('userId', String(response.userId));
-
       const user: AuthenticatedUser = {
         id: response.userId,
         name: response.name,

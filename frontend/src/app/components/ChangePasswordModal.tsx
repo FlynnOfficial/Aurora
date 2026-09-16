@@ -100,8 +100,7 @@ export function ChangePasswordModal({ onClose }: ChangePasswordModalProps) {
                 setSubmitting(true);
                 try {
                   const { api } = await import('../../services/api');
-                  const userId = Number(localStorage.getItem('userId'));
-                  await api.changePassword(userId, current, next);
+                  await api.changePassword(current, next);
                   setStep('done');
                 } catch (error) {
                   setErrors({ current: error instanceof Error ? error.message : 'Não foi possível alterar a senha' });

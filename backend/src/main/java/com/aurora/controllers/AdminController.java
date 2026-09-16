@@ -20,7 +20,6 @@ import com.aurora.repositories.UserRepository;
 @RestController
 @RequestMapping("/admin")
 @RequiredArgsConstructor
-@CrossOrigin(origins = {"http://localhost:5173", "http://localhost:3000"})
 public class AdminController {
     private final AdminService adminService;
     private final UserRepository userRepository;

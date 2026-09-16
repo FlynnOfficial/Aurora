@@ -113,6 +113,12 @@ public class AuthService {
         }
     }
 
+    public User currentUser(Long userId) throws Exception {
+        return userRepository.findById(userId)
+                .filter(user -> Boolean.TRUE.equals(user.getActive()))
+                .orElseThrow(() -> new Exception("Usuário inválido ou inativo"));
+    }
+
     public void requestAdminRegistration(String email, String password, String name, String organizationKey, String ipAddress) throws Exception {
         try {
             email = inputSanitizer.sanitizeEmail(email);

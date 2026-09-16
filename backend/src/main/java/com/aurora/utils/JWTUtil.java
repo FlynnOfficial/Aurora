@@ -127,6 +127,19 @@ public class JWTUtil {
         }
     }
 
+    public boolean isAccessToken(String token) {
+        try {
+            Claims claims = Jwts.parserBuilder()
+                    .setSigningKey(getSigningKey())
+                    .build()
+                    .parseClaimsJws(token)
+                    .getBody();
+            return "ACCESS".equals(claims.get("type"));
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
     /**
      * Verifica se token é do tipo REFRESH
      */

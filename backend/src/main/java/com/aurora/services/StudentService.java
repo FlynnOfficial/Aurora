@@ -90,4 +90,26 @@ public class StudentService {
         student.setActive(false);
         studentRepository.save(student);
     }
+
+    public void authorizeAccess(Long requesterId, String role, Long studentId) throws Exception {
+        Student student = studentRepository.findById(studentId)
+                .orElseThrow(() -> new Exception("Aluno não encontrado"));
+        User requester = userRepository.findById(requesterId)
+                .orElseThrow(() -> new Exception("Usuário não encontrado"));
+        if (!student.getOrganizationKey().equals(requester.getOrganizationKey()) ||
+                ("STUDENT".equals(role) && !student.getUser().getId().equals(requesterId))) {
+            throw new Exception("Sem permissão para este aluno");
+        }
+    }
+
+    public void authorizeUserAccess(Long requesterId, String role, Long targetUserId) throws Exception {
+        User target = userRepository.findById(targetUserId)
+                .orElseThrow(() -> new Exception("Usuário não encontrado"));
+        User requester = userRepository.findById(requesterId)
+                .orElseThrow(() -> new Exception("Usuário não encontrado"));
+        if (!requester.getOrganizationKey().equals(target.getOrganizationKey()) ||
+                (!requesterId.equals(targetUserId) && !"ADMIN".equals(role) && !"SUPER_ADMIN".equals(role))) {
+            throw new Exception("Sem permissão para este usuário");
+        }
+    }
 }

@@ -11,11 +11,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import jakarta.servlet.http.HttpServletRequest;
 
 @RestController
 @RequestMapping("/teachers")
 @RequiredArgsConstructor
-@CrossOrigin(origins = {"http://localhost:5173", "http://localhost:3000"})
 public class TeacherController {
     private final TeacherService teacherService;
 
@@ -30,8 +30,9 @@ public class TeacherController {
     }
 
     @GetMapping("/{userId}")
-    public ResponseEntity<?> getTeacher(@PathVariable Long userId) {
+    public ResponseEntity<?> getTeacher(@PathVariable Long userId, HttpServletRequest request) {
         try {
+            teacherService.authorizeUserAccess(userId(request), role(request), userId);
             Optional<Teacher> teacher = teacherService.getTeacherByUserId(userId);
             return teacher.map(ResponseEntity::ok)
                     .orElse(ResponseEntity.notFound().build());
@@ -41,8 +42,9 @@ public class TeacherController {
     }
 
     @GetMapping("/subject/{subject}")
-    public ResponseEntity<?> getTeachersBySubject(@PathVariable String subject) {
+    public ResponseEntity<?> getTeachersBySubject(@PathVariable String subject, HttpServletRequest request) {
         try {
+            requireRole(request, "ADMIN", "SUPER_ADMIN");
             List<Teacher> teachers = teacherService.getTeachersBySubject(subject);
             return ResponseEntity.ok(teachers);
         } catch (Exception e) {
@@ -51,8 +53,9 @@ public class TeacherController {
     }
 
     @GetMapping
-    public ResponseEntity<?> getAllTeachers() {
+    public ResponseEntity<?> getAllTeachers(HttpServletRequest request) {
         try {
+            requireRole(request, "ADMIN", "SUPER_ADMIN");
             List<Teacher> teachers = teacherService.getAllTeachers();
             return ResponseEntity.ok(teachers);
         } catch (Exception e) {
@@ -61,8 +64,9 @@ public class TeacherController {
     }
 
     @PutMapping("/{teacherId}")
-    public ResponseEntity<?> updateTeacher(@PathVariable Long teacherId, @RequestBody Teacher updates) {
+    public ResponseEntity<?> updateTeacher(@PathVariable Long teacherId, @RequestBody Teacher updates, HttpServletRequest request) {
         try {
+            requireRole(request, "ADMIN", "SUPER_ADMIN");
             Teacher updated = teacherService.updateTeacher(teacherId, updates);
             return ResponseEntity.ok(updated);
         } catch (Exception e) {
@@ -71,8 +75,9 @@ public class TeacherController {
     }
 
     @DeleteMapping("/{teacherId}")
-    public ResponseEntity<?> deleteTeacher(@PathVariable Long teacherId) {
+    public ResponseEntity<?> deleteTeacher(@PathVariable Long teacherId, HttpServletRequest request) {
         try {
+            requireRole(request, "ADMIN", "SUPER_ADMIN");
             teacherService.deleteTeacher(teacherId);
             return ResponseEntity.ok(createMessage("Professor deletado com sucesso"));
         } catch (Exception e) {
@@ -96,5 +101,23 @@ public class TeacherController {
         public Long userId;
         public String subject;
         public Set<String> classes;
+    }
+
+    private Long userId(HttpServletRequest request) throws Exception {
+        Object value = request.getAttribute("userId");
+        if (!(value instanceof Long)) throw new Exception("Sessão inválida");
+        return (Long) value;
+    }
+
+    private String role(HttpServletRequest request) throws Exception {
+        Object value = request.getAttribute("role");
+        if (!(value instanceof String)) throw new Exception("Sessão inválida");
+        return (String) value;
+    }
+
+    private void requireRole(HttpServletRequest request, String... allowedRoles) throws Exception {
+        String currentRole = role(request);
+        for (String allowedRole : allowedRoles) if (allowedRole.equals(currentRole)) return;
+        throw new Exception("Sem permissão");
     }
 }

@@ -9,18 +9,20 @@ import org.springframework.web.bind.annotation.*;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import jakarta.servlet.http.HttpServletRequest;
 
 @RestController
 @RequestMapping("/grades")
 @RequiredArgsConstructor
-@CrossOrigin(origins = {"http://localhost:5173", "http://localhost:3000"})
 public class GradeController {
     private final GradeService gradeService;
 
     @PostMapping
-    public ResponseEntity<?> createGrade(@RequestBody CreateGradeRequest request) {
+    public ResponseEntity<?> createGrade(@RequestBody CreateGradeRequest request, HttpServletRequest httpRequest) {
         try {
             Grade grade = gradeService.createGrade(
+                    userId(httpRequest),
+                    role(httpRequest),
                     request.studentId,
                     request.subject,
                     request.period,
@@ -34,9 +36,9 @@ public class GradeController {
     }
 
     @GetMapping("/student/{studentId}")
-    public ResponseEntity<?> getGradesByStudent(@PathVariable Long studentId) {
+    public ResponseEntity<?> getGradesByStudent(@PathVariable Long studentId, HttpServletRequest httpRequest) {
         try {
-            List<Grade> grades = gradeService.getGradesByStudent(studentId);
+            List<Grade> grades = gradeService.getGradesByStudent(userId(httpRequest), role(httpRequest), studentId);
             return ResponseEntity.ok(grades);
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(createError(e.getMessage()));
@@ -54,9 +56,9 @@ public class GradeController {
     }
 
     @GetMapping("/student/{studentId}/average")
-    public ResponseEntity<?> getStudentAverage(@PathVariable Long studentId) {
+    public ResponseEntity<?> getStudentAverage(@PathVariable Long studentId, HttpServletRequest httpRequest) {
         try {
-            Double average = gradeService.calculateStudentAverage(studentId);
+            Double average = gradeService.calculateStudentAverage(userId(httpRequest), role(httpRequest), studentId);
             Map<String, Double> response = new HashMap<>();
             response.put("average", average);
             return ResponseEntity.ok(response);
@@ -66,9 +68,9 @@ public class GradeController {
     }
 
     @PutMapping("/{gradeId}")
-    public ResponseEntity<?> updateGrade(@PathVariable Long gradeId, @RequestBody UpdateGradeRequest request) {
+    public ResponseEntity<?> updateGrade(@PathVariable Long gradeId, @RequestBody UpdateGradeRequest request, HttpServletRequest httpRequest) {
         try {
-            Grade updated = gradeService.updateGrade(gradeId, request.value);
+            Grade updated = gradeService.updateGrade(userId(httpRequest), role(httpRequest), gradeId, request.value);
             return ResponseEntity.ok(updated);
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(createError(e.getMessage()));
@@ -79,6 +81,18 @@ public class GradeController {
         Map<String, String> error = new HashMap<>();
         error.put("error", message);
         return error;
+    }
+
+    private Long userId(HttpServletRequest request) throws Exception {
+        Object value = request.getAttribute("userId");
+        if (!(value instanceof Long)) throw new Exception("Sessão inválida");
+        return (Long) value;
+    }
+
+    private String role(HttpServletRequest request) throws Exception {
+        Object value = request.getAttribute("role");
+        if (!(value instanceof String)) throw new Exception("Sessão inválida");
+        return (String) value;
     }
 
     public static class CreateGradeRequest {

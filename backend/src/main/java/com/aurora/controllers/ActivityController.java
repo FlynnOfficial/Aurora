@@ -12,7 +12,6 @@ import java.util.Map;
 @RestController
 @RequestMapping("/activities")
 @RequiredArgsConstructor
-@CrossOrigin(origins = {"http://localhost:5173", "http://localhost:3000"})
 public class ActivityController {
     private final ActivityService activityService;
 

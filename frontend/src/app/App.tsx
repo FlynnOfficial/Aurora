@@ -22,19 +22,35 @@ export default function App() {
   const [userType, setUserType] = useState<UserType>(null);
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    const storedUser = localStorage.getItem('user');
-    if (!token || !storedUser) return;
+    import('../services/api').then(({ api }) => api.getCurrentUser()).then((response) => {
+      const user: AuthenticatedUser = { id: response.userId, name: response.name, email: response.email, role: response.role };
+      setUser(user);
+      setUserType(response.role.toLowerCase() as UserRole);
+    }).catch(() => undefined);
+  }, []);
 
-    try {
-      const session = JSON.parse(storedUser) as StoredSession;
-      if (session.user && session.userType) {
-        setUser(session.user);
-        setUserType(session.userType);
+  useEffect(() => {
+    const blockInspectionShortcuts = (event: KeyboardEvent) => {
+      const key = event.key.toLowerCase();
+      const blocked = event.key === 'F12' ||
+        (event.ctrlKey && event.shiftKey && ['i', 'j', 'c'].includes(key)) ||
+        (event.metaKey && event.altKey && ['i', 'j', 'c'].includes(key));
+
+      if (blocked) {
+        event.preventDefault();
+        event.stopPropagation();
       }
-    } catch {
-      localStorage.removeItem('user');
-    }
+    };
+
+    const blockContextMenu = (event: MouseEvent) => event.preventDefault();
+
+    document.addEventListener('keydown', blockInspectionShortcuts, true);
+    document.addEventListener('contextmenu', blockContextMenu);
+
+    return () => {
+      document.removeEventListener('keydown', blockInspectionShortcuts, true);
+      document.removeEventListener('contextmenu', blockContextMenu);
+    };
   }, []);
 
   const handleLogin = (userData: AuthenticatedUser, type: UserRole) => {
@@ -47,9 +63,7 @@ export default function App() {
     setUser(null);
     setUserType(null);
     setScreen('login');
-    localStorage.removeItem('token');
-    localStorage.removeItem('userId');
-    localStorage.removeItem('user');
+    import('../services/api').then(({ api }) => api.logout()).catch(() => undefined);
   };
 
   if (screen === 'register') {

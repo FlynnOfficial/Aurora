@@ -2,17 +2,19 @@ import { LoginResponse } from '../types';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080/api';
 
-async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const token = localStorage.getItem('token');
+async function request<T>(path: string, init: RequestInit = {}, retryOnUnauthorized = true): Promise<T> {
   const headers = new Headers(init.headers);
   headers.set('Content-Type', 'application/json');
-  if (token) headers.set('Authorization', `Bearer ${token}`);
 
-  const response = await fetch(`${API_BASE_URL}${path}`, { ...init, headers });
+  const response = await fetch(`${API_BASE_URL}${path}`, { ...init, headers, credentials: 'include' });
   const contentType = response.headers.get('content-type') ?? '';
   const body = contentType.includes('application/json') ? await response.json() : null;
 
   if (!response.ok) {
+    if (response.status === 401 && retryOnUnauthorized && !path.startsWith('/auth/')) {
+      await request('/auth/refresh-token', { method: 'POST' }, false);
+      return request<T>(path, init, false);
+    }
     throw new Error(body?.error ?? `Erro HTTP ${response.status}`);
   }
 
@@ -26,14 +28,18 @@ export const api = {
     body: JSON.stringify({ email, password }),
   }),
 
+  getCurrentUser: () => request<LoginResponse>('/auth/me'),
+  refreshSession: () => request('/auth/refresh-token', { method: 'POST' }),
+  logout: () => request('/auth/logout', { method: 'POST' }, false),
+
   register: (email: string, password: string, name: string, organizationKey: string) => request('/auth/register', {
       method: 'POST',
       body: JSON.stringify({ email, password, name, organizationKey }),
     }),
 
-  changePassword: (userId: number, oldPassword: string, newPassword: string) => request('/auth/change-password', {
+  changePassword: (oldPassword: string, newPassword: string) => request('/auth/change-password', {
       method: 'POST',
-      body: JSON.stringify({ userId, oldPassword, newPassword }),
+    body: JSON.stringify({ oldPassword, newPassword }),
     }),
 
   // Student endpoints

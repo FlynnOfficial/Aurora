@@ -8,7 +8,7 @@ export interface AuthenticatedUser {
 }
 
 export interface LoginResponse {
-  accessToken: string;
+  accessToken?: string;
   refreshToken?: string;
   userId: number;
   email: string;

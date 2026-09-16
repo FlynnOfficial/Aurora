@@ -39,6 +39,13 @@ public class SecurityConfig {
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
             .csrf(csrf -> csrf.disable())
+            .headers(headers -> headers
+                .contentTypeOptions(contentTypeOptions -> {})
+                .frameOptions(frameOptions -> frameOptions.deny())
+                .httpStrictTransportSecurity(hsts -> hsts
+                    .includeSubDomains(true)
+                    .maxAgeInSeconds(31536000))
+            )
             .exceptionHandling(exceptionHandling ->
                 exceptionHandling.authenticationEntryPoint(jwtAuthenticationEntryPoint)
             )
@@ -46,10 +53,12 @@ public class SecurityConfig {
                 sessionManagement.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
             )
             .authorizeHttpRequests(authz -> authz
+                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                 .requestMatchers("/actuator/health").permitAll()
                 .requestMatchers(HttpMethod.POST, "/auth/login").permitAll()
                 .requestMatchers(HttpMethod.POST, "/auth/register").permitAll()
                 .requestMatchers(HttpMethod.POST, "/auth/refresh-token").permitAll()
+                .requestMatchers(HttpMethod.POST, "/auth/logout").permitAll()
                 .requestMatchers("/public/**").permitAll()
                 .requestMatchers("/students/**").hasAnyRole("STUDENT", "ADMIN", "SUPER_ADMIN")
                 .requestMatchers("/teachers/**").hasAnyRole("TEACHER", "ADMIN", "SUPER_ADMIN")
