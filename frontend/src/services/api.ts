@@ -1,6 +1,6 @@
 import { LoginResponse } from '../types';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080/api';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '/api';
 
 async function request<T>(path: string, init: RequestInit = {}, retryOnUnauthorized = true): Promise<T> {
   const headers = new Headers(init.headers);
