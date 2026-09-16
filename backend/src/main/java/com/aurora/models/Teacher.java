@@ -28,6 +28,13 @@ public class Teacher {
     @Column(nullable = false)
     private String subject;
 
+        @ManyToMany
+        @JoinTable(name = "teacher_subjects",
+            joinColumns = @JoinColumn(name = "teacher_id"),
+            inverseJoinColumns = @JoinColumn(name = "subject_id"))
+    @Builder.Default
+        private Set<Subject> subjects = new java.util.HashSet<>();
+
     @ElementCollection
     @CollectionTable(name = "teacher_classes", joinColumns = @JoinColumn(name = "teacher_id"))
     @Column(name = "class_name")
@@ -41,6 +48,7 @@ public class Teacher {
     private String address;
 
     @Column(nullable = false, columnDefinition = "BOOLEAN DEFAULT TRUE")
+    @Builder.Default
     private Boolean active = true;
 
     @Transient

@@ -45,6 +45,7 @@ export const api = {
   getTeacherProfile: (userId: number) => request(`/teachers/${userId}`),
 
   getTeacherActivities: () => request('/activities/teacher'),
+  getTeacherOverview: () => request('/activities/teacher/overview'),
 
   createActivity: (activity: unknown) => request('/activities', {
     method: 'POST',

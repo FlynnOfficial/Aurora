@@ -13,4 +13,5 @@ public interface StudentRepository extends JpaRepository<Student, Long> {
     Optional<Student> findByEnrollment(String enrollment);
     List<Student> findByClassName(String className);
     List<Student> findByActive(Boolean active);
+    List<Student> findByOrganizationKeyAndClassNameInAndActiveTrue(String organizationKey, java.util.Set<String> classNames);
 }

@@ -92,7 +92,7 @@ public class AdminController {
 
     @PostMapping("/users")
     public ResponseEntity<?> createUser(@RequestBody CreateUserRequest input, HttpServletRequest request) {
-        try { Object id = request.getAttribute("userId"); if (!(id instanceof Long)) throw new Exception("Sessao invalida"); return ResponseEntity.ok(adminService.createUser((Long) id, input.name, input.email, input.password, input.role, input.subject, input.classes, input.className, input.enrollment)); }
+        try { Object id = request.getAttribute("userId"); if (!(id instanceof Long)) throw new Exception("Sessao invalida"); return ResponseEntity.ok(adminService.createUser((Long) id, input.name, input.email, input.password, input.role, input.subject, input.subjects, input.classes, input.className, input.enrollment)); }
         catch (Exception e) { return ResponseEntity.badRequest().body(createError(e.getMessage())); }
     }
 
@@ -140,7 +140,7 @@ public class AdminController {
 
     public static class ClassRequest { public String name; public Integer schoolYear; }
     public static class SubjectRequest { public String name; }
-    public static class CreateUserRequest { public String name; public String email; public String password; public User.UserRole role; public String subject; public java.util.Set<String> classes; public String className; public String enrollment; }
+    public static class CreateUserRequest { public String name; public String email; public String password; public User.UserRole role; public String subject; public java.util.Set<String> subjects; public java.util.Set<String> classes; public String className; public String enrollment; }
 
     private Map<String, String> createError(String message) {
         Map<String, String> error = new HashMap<>();

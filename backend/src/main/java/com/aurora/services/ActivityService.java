@@ -39,6 +39,17 @@ public class ActivityService {
         if (request.questions == null || request.questions.isEmpty()) {
             throw new Exception("A atividade precisa ter ao menos uma questao");
         }
+        BigDecimal totalPoints = request.questions.stream()
+                .map(input -> input.points == null ? BigDecimal.ZERO : input.points)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        if (totalPoints.compareTo(BigDecimal.TEN) > 0) {
+            throw new Exception("A soma dos pontos da atividade nao pode ultrapassar 10");
+        }
+        Set<String> teacherSubjects = teacher.getSubjects() == null || teacher.getSubjects().isEmpty()
+            ? Set.of(teacher.getSubject()) : teacher.getSubjects().stream().map(Subject::getName).collect(java.util.stream.Collectors.toSet());
+        if (request.subject == null || !teacherSubjects.contains(request.subject.trim())) {
+            throw new Exception("Materia nao lecionada pelo professor");
+        }
 
         Activity activity = new Activity();
         activity.setTitle(request.title.trim());
@@ -79,6 +90,29 @@ public class ActivityService {
                 .map(activity -> activityView(activity, null, true)).toList();
     }
 
+            @Transactional(readOnly = true)
+            public Map<String, Object> teacherOverview(Long userId) throws Exception {
+            Teacher teacher = teacherRepository.findByUser(userRepository.findById(userId)
+                .orElseThrow(() -> new Exception("Usuario nao encontrado")))
+                .orElseThrow(() -> new Exception("Professor nao encontrado"));
+            List<Map<String, Object>> students = studentRepository.findByOrganizationKeyAndClassNameInAndActiveTrue(
+                teacher.getOrganizationKey(), teacher.getClasses() == null ? Set.of() : teacher.getClasses()).stream()
+                .map(student -> {
+                    Map<String, Object> value = new LinkedHashMap<>();
+                    value.put("id", student.getId()); value.put("name", student.getUser().getName());
+                    value.put("enrollment", student.getEnrollment()); value.put("className", student.getClassName());
+                    return value;
+                }).toList();
+            List<Map<String, Object>> activities = activityRepository.findByTeacherOrderByCreatedAtDesc(teacher).stream()
+                .map(activity -> {
+                    Map<String, Object> value = activityView(activity, null, true);
+                    value.put("submissions", submissionRepository.findByActivityOrderBySubmittedAtAsc(activity).stream()
+                        .map(submission -> submissionView(submission, true)).toList());
+                    return value;
+                }).toList();
+            return Map.of("teacher", teacher, "students", students, "activities", activities);
+            }
+
     @Transactional(readOnly = true)
     public List<Map<String, Object>> studentActivities(Long userId) throws Exception {
         Student student = studentRepository.findByUser(userRepository.findById(userId)
@@ -88,8 +122,24 @@ public class ActivityService {
                 .filter(activity -> activity.getClassName().equals(student.getClassName()))
                 .map(activity -> {
                     Submission submission = submissionRepository.findByActivityAndStudent(activity, student).orElse(null);
-                    return activityView(activity, submission, false);
+                    return studentActivityView(activity, submission);
                 }).toList();
+    }
+
+    private Map<String, Object> studentActivityView(Activity activity, Submission submission) {
+        Map<String, Object> result = activityView(activity, null, false);
+        result.put("submission", submission == null ? null : submissionView(submission, true));
+        if (submission != null && submission.getStatus() == Submission.Status.GRADED) {
+            result.put("questions", activity.getQuestionItems().stream().map(question -> {
+                Map<String, Object> value = new LinkedHashMap<>();
+                value.put("id", question.getId()); value.put("position", question.getPosition());
+                value.put("type", question.getType()); value.put("prompt", question.getPrompt());
+                value.put("points", question.getPoints()); value.put("options", question.getOptions());
+                value.put("correctAnswer", question.getCorrectAnswer());
+                return value;
+            }).toList());
+        }
+        return result;
     }
 
     @Transactional
@@ -117,16 +167,19 @@ public class ActivityService {
         submission = submissionRepository.save(submission);
         Map<Long, ActivityQuestion> questions = new HashMap<>();
         activity.getQuestionItems().forEach(question -> questions.put(question.getId(), question));
-        for (AnswerRequest input : Optional.ofNullable(answers).orElse(List.of())) {
-            ActivityQuestion question = questions.get(input.questionId);
-            if (question == null) throw new Exception("Questao invalida");
+        Map<Long, AnswerRequest> submittedAnswers = Optional.ofNullable(answers).orElse(List.of()).stream()
+                .collect(java.util.stream.Collectors.toMap(input -> input.questionId, input -> input, (first, second) -> second));
+        for (ActivityQuestion question : questions.values()) {
+            AnswerRequest input = submittedAnswers.get(question.getId());
             Answer answer = new Answer();
             answer.setSubmission(submission);
             answer.setQuestion(question);
-            answer.setAnswer(input.answer);
+            answer.setAnswer(input == null ? null : input.answer);
+            if (isMultipleChoice(question)) answer.setScore(automaticScore(question, answer.getAnswer()));
             answerRepository.save(answer);
         }
-        return submissionView(submission, false);
+        updateSubmissionScore(submission);
+        return submissionView(submissionRepository.save(submission), false);
     }
 
     @Transactional(readOnly = true)
@@ -143,23 +196,52 @@ public class ActivityService {
         ownedActivity(userId, submission.getActivity().getId());
         Map<Long, Answer> answers = new HashMap<>();
         answerRepository.findBySubmission(submission).forEach(answer -> answers.put(answer.getQuestion().getId(), answer));
-        BigDecimal total = BigDecimal.ZERO;
-        for (QuestionGrade input : Optional.ofNullable(request.questions).orElse(List.of())) {
-            Answer answer = answers.get(input.questionId);
-            if (answer == null) throw new Exception("Resposta invalida");
-            BigDecimal max = answer.getQuestion().getPoints();
-            BigDecimal score = input.score == null ? BigDecimal.ZERO : input.score;
+        Map<Long, QuestionGrade> requestedGrades = Optional.ofNullable(request.questions).orElse(List.of()).stream()
+                .collect(java.util.stream.Collectors.toMap(input -> input.questionId, input -> input, (first, second) -> second));
+        for (Answer answer : answers.values()) {
+            ActivityQuestion question = answer.getQuestion();
+            BigDecimal score;
+            if (isMultipleChoice(question)) {
+                score = automaticScore(question, answer.getAnswer());
+            } else {
+                QuestionGrade input = requestedGrades.get(question.getId());
+                score = input == null || input.score == null ? BigDecimal.ZERO : input.score;
+                answer.setTeacherFeedback(input == null ? null : input.feedback);
+            }
+            BigDecimal max = question.getPoints();
             if (score.compareTo(BigDecimal.ZERO) < 0 || score.compareTo(max) > 0) throw new Exception("Nota fora do limite da questao");
             answer.setScore(score);
-            answer.setTeacherFeedback(input.feedback);
             answerRepository.save(answer);
-            total = total.add(score);
         }
+        updateSubmissionScore(submission);
         submission.setTeacherFeedback(request.feedback);
-        submission.setTotalScore(total.setScale(2, RoundingMode.HALF_UP));
-        submission.setGradedAt(Instant.now());
-        submission.setStatus(Submission.Status.GRADED);
         return submissionView(submissionRepository.save(submission), true);
+    }
+
+    private boolean isMultipleChoice(ActivityQuestion question) {
+        return question.getType() == ActivityQuestion.QuestionType.MULTIPLE_CHOICE;
+    }
+
+    private BigDecimal automaticScore(ActivityQuestion question, String answer) {
+        return answer != null && answer.equals(question.getCorrectAnswer()) ? question.getPoints() : BigDecimal.ZERO;
+    }
+
+    private void updateSubmissionScore(Submission submission) {
+        List<Answer> answers = answerRepository.findBySubmission(submission);
+        BigDecimal total = answers.stream()
+                .map(answer -> answer.getScore() == null ? BigDecimal.ZERO : answer.getScore())
+                .reduce(BigDecimal.ZERO, BigDecimal::add)
+                .min(BigDecimal.TEN)
+                .setScale(2, RoundingMode.HALF_UP);
+        boolean complete = submission.getActivity().getQuestionItems().stream()
+                .allMatch(question -> answers.stream().anyMatch(answer -> question.getId().equals(answer.getQuestion().getId()) && answer.getScore() != null));
+        submission.setTotalScore(total);
+        if (complete) {
+            submission.setGradedAt(Instant.now());
+            submission.setStatus(Submission.Status.GRADED);
+        } else {
+            submission.setStatus(Submission.Status.SUBMITTED);
+        }
     }
 
     private Activity ownedActivity(Long userId, Long activityId) throws Exception {
@@ -182,7 +264,7 @@ public class ActivityService {
             Map<String, Object> question = new LinkedHashMap<>();
             question.put("id", q.getId()); question.put("position", q.getPosition()); question.put("type", q.getType());
             question.put("prompt", q.getPrompt()); question.put("points", q.getPoints()); question.put("options", q.getOptions());
-            if (includeAnswers && submission != null && submission.getStatus() == Submission.Status.GRADED) question.put("correctAnswer", q.getCorrectAnswer());
+            if (includeAnswers) question.put("correctAnswer", q.getCorrectAnswer());
             return question;
         }).toList());
         return result;
@@ -193,11 +275,12 @@ public class ActivityService {
         result.put("id", submission.getId()); result.put("status", submission.getStatus()); result.put("submittedAt", submission.getSubmittedAt());
         result.put("gradedAt", submission.getGradedAt()); result.put("totalScore", submission.getTotalScore());
         result.put("teacherFeedback", submission.getTeacherFeedback()); result.put("studentName", submission.getStudent().getUser().getName());
-        if (includeAnswers && submission.getStatus() == Submission.Status.GRADED) {
+        if (includeAnswers) {
             result.put("answers", answerRepository.findBySubmission(submission).stream().map(answer -> {
                 Map<String, Object> value = new LinkedHashMap<>(); value.put("questionId", answer.getQuestion().getId());
                 value.put("answer", answer.getAnswer()); value.put("score", answer.getScore()); value.put("teacherFeedback", answer.getTeacherFeedback());
-                value.put("correctAnswer", answer.getQuestion().getCorrectAnswer()); return value;
+                if (submission.getStatus() == Submission.Status.GRADED) value.put("correctAnswer", answer.getQuestion().getCorrectAnswer());
+                return value;
             }).toList());
         }
         return result;

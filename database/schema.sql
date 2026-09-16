@@ -64,6 +64,23 @@ CREATE TABLE IF NOT EXISTS teacher_classes (
     FOREIGN KEY (teacher_id) REFERENCES teachers(id) ON DELETE CASCADE
 );
 
+-- Subjects assigned by the administrator to each teacher
+CREATE TABLE IF NOT EXISTS subjects (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    organization_key VARCHAR(255) NOT NULL,
+    name VARCHAR(100) NOT NULL,
+    active BOOLEAN DEFAULT TRUE,
+    UNIQUE KEY uq_subject_organization_name (organization_key, name)
+);
+
+CREATE TABLE IF NOT EXISTS teacher_subjects (
+    teacher_id BIGINT NOT NULL,
+    subject_id BIGINT NOT NULL,
+    PRIMARY KEY (teacher_id, subject_id),
+    FOREIGN KEY (teacher_id) REFERENCES teachers(id) ON DELETE CASCADE,
+    FOREIGN KEY (subject_id) REFERENCES subjects(id) ON DELETE CASCADE
+);
+
 -- Admins Table
 CREATE TABLE IF NOT EXISTS admins (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,

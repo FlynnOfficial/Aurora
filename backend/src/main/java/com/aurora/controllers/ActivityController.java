@@ -28,6 +28,12 @@ public class ActivityController {
         catch (Exception e) { return error(e); }
     }
 
+    @GetMapping("/teacher/overview")
+    public ResponseEntity<?> teacherOverview(HttpServletRequest request) {
+        try { return ResponseEntity.ok(activityService.teacherOverview(userId(request))); }
+        catch (Exception e) { return error(e); }
+    }
+
     @GetMapping("/student")
     public ResponseEntity<?> studentActivities(HttpServletRequest request) {
         try { return ResponseEntity.ok(activityService.studentActivities(userId(request))); }

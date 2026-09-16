@@ -3,6 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/
 import { Button } from './ui/button';
 import { Avatar, AvatarFallback } from './ui/avatar';
 import { Badge } from './ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Textarea } from './ui/textarea';
 import {
@@ -29,7 +30,7 @@ import {
   AlertCircle,
 } from 'lucide-react';
 import { ChangePasswordModal } from './ChangePasswordModal';
-import { mockStudents, mockActivities, Activity, Question } from '../data/mockData';
+import { Activity, Question } from '../data/mockData';
 import { api } from '../../services/api';
 
 interface StudentDashboardProps {
@@ -54,10 +55,13 @@ function ActivitySolver({
   activity: Activity;
   onBack: () => void;
 }) {
-  const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [answers, setAnswers] = useState<Record<string, string>>(() =>
+    Object.fromEntries((activity as any).submission?.answers?.map((answer: any) => [String(answer.questionId), answer.answer ?? '']) ?? [])
+  );
   const [submitted, setSubmitted] = useState(activity.status !== 'pending');
 
   const isReadOnly = activity.status !== 'pending';
+  const isGraded = activity.status === 'graded';
   const total = activity.questions.length;
   const answered = Object.keys(answers).filter((k) => answers[k]?.trim()).length;
 
@@ -135,20 +139,25 @@ function ActivitySolver({
                   <div className="space-y-2">
                     {q.options.map((opt) => {
                       const selected = answers[q.id] === opt.id;
+                      const correct = isGraded && (q as any).correctAnswer === opt.id;
                       return (
                         <button
                           key={opt.id}
                           disabled={isReadOnly || submitted}
                           onClick={() => setAnswer(q.id, opt.id)}
                           className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg border text-sm text-left transition-colors ${
-                            selected
+                            correct
+                              ? 'border-green-500 bg-green-50 text-green-900'
+                              : selected
                               ? 'border-blue-500 bg-blue-50 text-blue-800'
                               : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
                           } ${isReadOnly || submitted ? 'cursor-default opacity-80' : 'cursor-pointer'}`}
                         >
                           <span
                             className={`size-6 rounded-full border-2 flex items-center justify-center shrink-0 text-xs font-bold ${
-                              selected
+                              correct
+                                ? 'border-green-500 bg-green-500 text-white'
+                                : selected
                                 ? 'border-blue-500 bg-blue-500 text-white'
                                 : 'border-gray-300 text-gray-400'
                             }`}
@@ -156,6 +165,8 @@ function ActivitySolver({
                             {opt.id.toUpperCase()}
                           </span>
                           {opt.text}
+                          {selected && <Badge className="ml-auto bg-blue-600">Sua resposta</Badge>}
+                          {correct && <Badge className="ml-auto bg-green-600">Resposta correta</Badge>}
                         </button>
                       );
                     })}
@@ -171,6 +182,11 @@ function ActivitySolver({
                     rows={6}
                     className="resize-none text-sm"
                   />
+                )}
+                {q.type === 'essay' && isGraded && (activity as any).submission?.answers?.find((answer: any) => String(answer.questionId) === q.id)?.teacherFeedback && (
+                  <p className="text-sm text-gray-600 bg-yellow-50 border border-yellow-200 rounded-md p-3">
+                    Feedback: {(activity as any).submission.answers.find((answer: any) => String(answer.questionId) === q.id).teacherFeedback}
+                  </p>
                 )}
               </div>
             </div>
@@ -203,6 +219,12 @@ function ActivitySolver({
 function ActivitiesPage({ onOpen }: { onOpen: (a: Activity) => void }) {
   const [activities, setActivities] = useState<Activity[]>([]);
   const [error, setError] = useState('');
+  const [filter, setFilter] = useState('all');
+
+  const parseOptions = (value: unknown) => {
+    if (typeof value !== 'string' || !value.trim()) return [];
+    try { return JSON.parse(value); } catch { return []; }
+  };
 
   useEffect(() => {
     api.getStudentActivities()
@@ -211,17 +233,19 @@ function ActivitiesPage({ onOpen }: { onOpen: (a: Activity) => void }) {
         teacher: activity.teacherName, description: activity.description ?? '', dueDate: activity.dueDate,
         status: activity.submission?.status?.toLowerCase() ?? 'pending',
         grade: activity.submission?.totalScore == null ? undefined : Number(activity.submission.totalScore),
+        submission: activity.submission,
         questions: (activity.questions ?? []).map((question: any) => ({
           id: String(question.id), type: question.type === 'ESSAY' ? 'essay' : 'multiple_choice',
           statement: question.prompt, placeholder: '',
-          options: question.options ? JSON.parse(question.options) : [],
+          options: parseOptions(question.options),
+          correctAnswer: question.correctAnswer,
         })),
       }))))
       .catch((requestError) => setError(requestError instanceof Error ? requestError.message : 'Erro ao carregar atividades'));
   }, []);
 
   const activitiesBySubject = Array.from(new Set(activities.map((activity) => activity.subject))).map((subject) => ({
-    subject, items: activities.filter((activity) => activity.subject === subject),
+    subject, items: activities.filter((activity) => activity.subject === subject && (filter === 'all' || activity.status === filter)),
   }));
 
   const now = new Date();
@@ -237,6 +261,19 @@ function ActivitiesPage({ onOpen }: { onOpen: (a: Activity) => void }) {
       <div>
         <h2 className="text-lg font-semibold">Atividades</h2>
         <p className="text-sm text-gray-500">Atividades geradas pelos seus professores, organizadas por disciplina</p>
+      </div>
+
+      <div className="flex items-center gap-3">
+        <span className="text-sm text-gray-600">Mostrar:</span>
+        <Select value={filter} onValueChange={setFilter}>
+          <SelectTrigger className="w-52"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todas</SelectItem>
+            <SelectItem value="pending">Não enviadas</SelectItem>
+            <SelectItem value="submitted">Enviadas / aguardando</SelectItem>
+            <SelectItem value="graded">Corrigidas</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Summary pills */}
@@ -260,7 +297,7 @@ function ActivitiesPage({ onOpen }: { onOpen: (a: Activity) => void }) {
       </div>
 
       {/* Grouped by subject */}
-      {activitiesBySubject.map(({ subject, items }) => (
+      {activitiesBySubject.filter(({ items }) => items.length > 0).map(({ subject, items }) => (
         <div key={subject}>
           <div className="flex items-center gap-2 mb-3">
             <BookOpen className="size-4 text-gray-400" />
@@ -326,14 +363,45 @@ export function StudentDashboard({ user, onLogout }: StudentDashboardProps) {
   const [page, setPage] = useState<Page>('dashboard');
   const [selectedActivity, setSelectedActivity] = useState<Activity | null>(null);
   const [showChangePwd, setShowChangePwd] = useState(false);
-  const student = mockStudents[0];
+  const [student, setStudent] = useState<any>(null);
+  const [grades, setGrades] = useState<any[]>([]);
+  const [activities, setActivities] = useState<any[]>([]);
+
+  useEffect(() => {
+    const studentId = Number(user.id);
+    Promise.all([api.getStudentProfile(studentId), api.getStudentGrades(studentId), api.getStudentActivities()])
+      .then(([profile, loadedGrades, loadedActivities]: any[]) => {
+        setStudent(profile);
+        const groupedGrades = loadedGrades.reduce((groups: any[], grade: any) => {
+          const group = groups.find((item) => item.subject === grade.subject);
+          if (group) group.grades.push(grade);
+          else groups.push({ subject: grade.subject, grades: [grade] });
+          return groups;
+        }, []);
+        loadedActivities.forEach((activity: any) => {
+          const submission = activity.submission;
+          if (!submission || submission.status !== 'GRADED' || submission.totalScore == null) return;
+          const group = groupedGrades.find((item: any) => item.subject === activity.subject);
+          const activityGrade = { period: 'Atividades', value: Number(submission.totalScore), weight: 1 };
+          if (group) group.grades.push(activityGrade);
+          else groupedGrades.push({ subject: activity.subject, grades: [activityGrade] });
+        });
+        setGrades(groupedGrades.map((group: any) => {
+          const average = group.grades.reduce((sum: number, grade: any) => sum + Number(grade.value), 0) / group.grades.length;
+          return { ...group, average, status: average > 6 ? 'approved' : average === 6 ? 'recovering' : 'failed' };
+        }));
+        setActivities(loadedActivities);
+      })
+      .catch(() => { setStudent(null); });
+  }, [user.id]);
+
+  if (!student) return <div className="min-h-screen flex items-center justify-center text-gray-400">Carregando dados do aluno...</div>;
 
   const overallAverage =
-    student.grades.reduce((sum, g) => sum + g.average, 0) / student.grades.length;
+    grades.length ? grades.reduce((sum, g) => sum + g.average, 0) / grades.length : 0;
 
   const now = new Date();
-  const pendingCount = mockActivities.filter((a) => a.status === 'pending' && new Date(a.dueDate) >= now).length;
-  const encerradoCount = mockActivities.filter((a) => a.status === 'pending' && new Date(a.dueDate) < now).length;
+  const pendingCount = activities.filter((a) => !a.submission && new Date(a.dueDate) >= now).length;
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -369,7 +437,7 @@ export function StudentDashboard({ user, onLogout }: StudentDashboardProps) {
             </Avatar>
             <div>
               <p className="font-medium text-sm leading-tight">{user.name}</p>
-              <p className="text-xs text-gray-500">{student.class} • {student.enrollment}</p>
+              <p className="text-xs text-gray-500">{student.className} • {student.enrollment}</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -432,9 +500,9 @@ export function StudentDashboard({ user, onLogout }: StudentDashboardProps) {
                     <Award className="size-4 text-blue-600" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-semibold">{overallAverage.toFixed(1)}</div>
+                    <div className={`text-2xl font-semibold ${overallAverage > 6 ? 'text-green-600' : overallAverage === 6 ? 'text-yellow-600' : 'text-red-600'}`}>{overallAverage.toFixed(1)}</div>
                     <p className="text-xs text-gray-500">
-                      {overallAverage >= 7 ? 'Desempenho aprovado' : 'Atenção necessária'}
+                      {overallAverage > 6 ? 'Desempenho aprovado' : overallAverage === 6 ? 'Média mínima' : 'Atenção necessária'}
                     </p>
                   </CardContent>
                 </Card>
@@ -445,7 +513,7 @@ export function StudentDashboard({ user, onLogout }: StudentDashboardProps) {
                     <BookOpen className="size-4 text-blue-600" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-semibold">{student.grades.length}</div>
+                    <div className="text-2xl font-semibold">{grades.length}</div>
                     <p className="text-xs text-gray-500">Total de matérias</p>
                   </CardContent>
                 </Card>
@@ -457,7 +525,7 @@ export function StudentDashboard({ user, onLogout }: StudentDashboardProps) {
                   </CardHeader>
                   <CardContent>
                     <div className="text-2xl font-semibold">
-                      {student.grades.filter((g) => g.status === 'approved').length}
+                      {grades.filter((g) => g.status === 'approved').length}
                     </div>
                     <p className="text-xs text-gray-500">Disciplinas aprovadas</p>
                   </CardContent>
@@ -470,16 +538,16 @@ export function StudentDashboard({ user, onLogout }: StudentDashboardProps) {
                   <CardDescription>Acompanhe seu desempenho em todas as disciplinas</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <Tabs defaultValue={student.grades[0].subject}>
+                  {grades.length === 0 ? <p className="text-sm text-gray-500">Nenhuma nota registrada.</p> : <Tabs defaultValue={grades[0].subject}>
                     <TabsList className="mb-4 flex-wrap h-auto">
-                      {student.grades.map((grade) => (
+                      {grades.map((grade) => (
                         <TabsTrigger key={grade.subject} value={grade.subject}>
                           {grade.subject}
                         </TabsTrigger>
                       ))}
                     </TabsList>
 
-                    {student.grades.map((grade) => (
+                    {grades.map((grade) => (
                       <TabsContent key={grade.subject} value={grade.subject}>
                         <div className="space-y-4">
                           <div className="flex items-center justify-between">
@@ -504,14 +572,14 @@ export function StudentDashboard({ user, onLogout }: StudentDashboardProps) {
                                   <TableCell>
                                     <span
                                       className={`font-medium ${
-                                        g.grade > 6
+                                        Number(g.value) > 6
                                           ? 'text-green-600'
-                                          : g.grade === 6
+                                          : Number(g.value) === 6
                                           ? 'text-yellow-600'
                                           : 'text-red-600'
                                       }`}
                                     >
-                                      {g.grade.toFixed(1)}
+                                      {Number(g.value).toFixed(1)}
                                     </span>
                                   </TableCell>
                                 </TableRow>
@@ -529,7 +597,7 @@ export function StudentDashboard({ user, onLogout }: StudentDashboardProps) {
                         </div>
                       </TabsContent>
                     ))}
-                  </Tabs>
+                  </Tabs>}
                 </CardContent>
               </Card>
             </div>

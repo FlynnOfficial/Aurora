@@ -417,7 +417,7 @@ export function AdminDashboard({ user, onLogout }: AdminDashboardProps) {
       {showChangePwd && <ChangePasswordModal onClose={() => setShowChangePwd(false)} />}
       {modal?.type === 'add_teacher' && (
         <AddTeacherPanel availableSubjects={subjects.map((subject) => subject.name)} availableClasses={classes.map((schoolClass) => schoolClass.name)}
-          onAdd={(t) => { api.createAdminUser({ name: t.name, email: t.email, password: t.password, role: 'TEACHER', subject: t.subjects[0], classes: t.classes }).then((nt: any) => setTeachers((p) => [...p, nt])).catch((e) => setUserError(e.message)); }}
+          onAdd={(t) => { api.createAdminUser({ name: t.name, email: t.email, password: t.password, role: 'TEACHER', subject: t.subjects[0], subjects: t.subjects, classes: t.classes }).then((nt: any) => setTeachers((p) => [...p, nt])).catch((e) => setUserError(e.message)); }}
           onClose={() => setModal(null)}
         />
       )}

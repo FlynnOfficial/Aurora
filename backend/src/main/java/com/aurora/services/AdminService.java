@@ -8,6 +8,7 @@ import com.aurora.repositories.RegistrationRepository;
 import com.aurora.repositories.UserRepository;
 import com.aurora.repositories.TeacherRepository;
 import com.aurora.repositories.StudentRepository;
+import com.aurora.repositories.SubjectRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -22,6 +23,7 @@ public class AdminService {
     private final PasswordEncoder passwordEncoder;
     private final TeacherRepository teacherRepository;
     private final StudentRepository studentRepository;
+    private final SubjectRepository subjectRepository;
 
     public List<Registration> getPendingRegistrations() {
         return registrationRepository.findByStatus(Registration.Status.PENDING);
@@ -75,6 +77,7 @@ public class AdminService {
                     teacher.getSubject() != null && !teacher.getSubject().isBlank() &&
                     teacher.getClasses() != null && !teacher.getClasses().isEmpty()).map(teacher -> {
                         user.setAssignedSubject(teacher.getSubject());
+                        user.setAssignedSubjects(teacher.getSubjects().stream().map(com.aurora.models.Subject::getName).collect(java.util.stream.Collectors.toSet()));
                         user.setAssignedClasses(teacher.getClasses());
                         return true;
                     }).orElse(false);
@@ -83,14 +86,20 @@ public class AdminService {
         }).toList();
     }
 
-    public User createUser(Long requesterId, String name, String email, String password, User.UserRole role, String subject, java.util.Set<String> classes, String className, String enrollment) throws Exception {
+    public User createUser(Long requesterId, String name, String email, String password, User.UserRole role, String subject, java.util.Set<String> subjects, java.util.Set<String> classes, String className, String enrollment) throws Exception {
         User requester = userRepository.findById(requesterId).orElseThrow(() -> new Exception("Administrador nao encontrado"));
         if (requester.getRole() != User.UserRole.ADMIN && requester.getRole() != User.UserRole.SUPER_ADMIN) throw new Exception("Sem permissao");
         if (role == User.UserRole.SUPER_ADMIN) throw new Exception("Super Admin nao pode ser criado pelo site");
         if (userRepository.findByEmailIgnoreCase(email).isPresent()) throw new Exception("Email ja cadastrado");
         User user = userRepository.save(User.builder().name(name.trim()).email(email.trim().toLowerCase()).password(passwordEncoder.encode(password)).role(role).organizationKey(requester.getOrganizationKey()).active(true).failedAttempts(0).build());
         if (role == User.UserRole.TEACHER) {
-            teacherRepository.save(Teacher.builder().user(user).organizationKey(requester.getOrganizationKey()).subject(subject).classes(classes == null ? java.util.Set.of() : classes).active(true).build());
+                java.util.Set<String> assignedSubjects = subjects == null || subjects.isEmpty()
+                    ? (subject == null ? java.util.Set.of() : java.util.Set.of(subject)) : subjects;
+                java.util.Set<com.aurora.models.Subject> subjectEntities = subjectRepository.findByOrganizationKeyAndActiveTrueOrderByName(requester.getOrganizationKey()).stream()
+                    .filter(value -> assignedSubjects.contains(value.getName())).collect(java.util.stream.Collectors.toSet());
+                teacherRepository.save(Teacher.builder().user(user).organizationKey(requester.getOrganizationKey())
+                    .subject(assignedSubjects.iterator().next()).subjects(subjectEntities)
+                    .classes(classes == null ? java.util.Set.of() : classes).active(true).build());
         } else if (role == User.UserRole.STUDENT) {
             studentRepository.save(Student.builder().user(user).organizationKey(requester.getOrganizationKey()).className(className).enrollment(enrollment).active(true).build());
         }

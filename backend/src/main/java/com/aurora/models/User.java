@@ -52,6 +52,9 @@ public class User {
     private String assignedSubject;
 
     @Transient
+    private java.util.Set<String> assignedSubjects;
+
+    @Transient
     private java.util.Set<String> assignedClasses;
 
     @PrePersist

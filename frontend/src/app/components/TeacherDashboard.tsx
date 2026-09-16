@@ -77,13 +77,29 @@ function newQuestion(type: 'multiple_choice' | 'essay'): DraftQuestion {
   };
 }
 
+function parseOptions(options: unknown): { id: string; text: string }[] {
+  if (typeof options !== 'string' || !options.trim()) return [];
+  try {
+    const parsed = JSON.parse(options);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function automaticScore(question: any, answer: any): number | null {
+  if (question?.type !== 'MULTIPLE_CHOICE' || !question.correctAnswer) return null;
+  return answer.answer === question.correctAnswer ? Number(question.points ?? 0) : 0;
+}
+
 // ── View Activities page ──────────────────────────────────────────────────────
 
-function MyActivitiesPage({ teacher }: { teacher: typeof mockTeachers[0] }) {
+function MyActivitiesPage({ teacher }: { teacher: any }) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [teacherActivities, setTeacherActivities] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [selectedSubject, setSelectedSubject] = useState(teacher.subjects?.[0] ?? teacher.subject ?? '');
 
   useEffect(() => {
     api.getTeacherActivities()
@@ -93,10 +109,11 @@ function MyActivitiesPage({ teacher }: { teacher: typeof mockTeachers[0] }) {
         dueDate: activity.dueDate,
         status: activity.submission?.status?.toLowerCase() ?? 'pending',
         questions: (activity.questions ?? []).map((question: any) => ({
+            ...question,
           statement: question.prompt,
           type: question.type.toLowerCase(),
           points: Number(question.points),
-          options: [],
+            options: parseOptions(question.options),
         })),
       }))))
       .catch((requestError) => setError(requestError instanceof Error ? requestError.message : 'Erro ao carregar atividades'))
@@ -128,8 +145,13 @@ function MyActivitiesPage({ teacher }: { teacher: typeof mockTeachers[0] }) {
         <p className="text-sm text-gray-500">Você criou {teacherActivities.length} atividade(s)</p>
       </div>
 
+      <Select value={selectedSubject} onValueChange={setSelectedSubject}>
+        <SelectTrigger className="w-56"><SelectValue placeholder="Filtrar por matéria" /></SelectTrigger>
+        <SelectContent>{(teacher.subjects ?? [teacher.subject]).filter(Boolean).map((subject: string) => <SelectItem key={subject} value={subject}>{subject}</SelectItem>)}</SelectContent>
+      </Select>
+
       <div className="space-y-3">
-        {teacherActivities.map((activity) => {
+        {teacherActivities.filter((activity) => !selectedSubject || activity.subject === selectedSubject).map((activity) => {
           const isExpanded = expandedId === activity.id;
           const statusColor =
             activity.status === 'pending'
@@ -236,6 +258,7 @@ function MyActivitiesPage({ teacher }: { teacher: typeof mockTeachers[0] }) {
 
 function CreateActivityPage({ teacher }: { teacher: any }) {
   const [selectedClass, setSelectedClass] = useState(teacher.classes?.[0] ?? '');
+  const [selectedSubject, setSelectedSubject] = useState(teacher.subjects?.[0] ?? teacher.subject ?? '');
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [dueDate, setDueDate] = useState('');
@@ -299,7 +322,7 @@ function CreateActivityPage({ teacher }: { teacher: any }) {
     setSubmitting(true);
     setSaveError('');
     try {
-      await api.createActivity({ title: title.trim(), subject: teacher.subject, className: selectedClass, description: description.trim(), dueDate: selected.toISOString(), questions: questions.map((q) => ({ type: q.type === 'essay' ? 'ESSAY' : 'MULTIPLE_CHOICE', prompt: q.statement, points: q.points, correctAnswer: q.correctAnswer, options: JSON.stringify(q.options) })) });
+      await api.createActivity({ title: title.trim(), subject: selectedSubject, className: selectedClass, description: description.trim(), dueDate: selected.toISOString(), questions: questions.map((q) => ({ type: q.type === 'essay' ? 'ESSAY' : 'MULTIPLE_CHOICE', prompt: q.statement, points: q.points, correctAnswer: q.correctAnswer, options: JSON.stringify(q.options) })) });
       setSaved(true);
     } catch (error) {
       setSaveError(error instanceof Error ? error.message : 'Não foi possível publicar a atividade.');
@@ -349,6 +372,13 @@ function CreateActivityPage({ teacher }: { teacher: any }) {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label>Matéria</Label>
+              <Select value={selectedSubject} onValueChange={setSelectedSubject}>
+                <SelectTrigger><SelectValue placeholder="Selecione a matéria" /></SelectTrigger>
+                <SelectContent>{(teacher.subjects ?? [teacher.subject]).filter(Boolean).map((subject: string) => <SelectItem key={subject} value={subject}>{subject}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
             <div className="space-y-1.5">
               <Label>Turma</Label>
               <Select value={selectedClass} onValueChange={setSelectedClass}>
@@ -589,13 +619,20 @@ function CreateActivityPage({ teacher }: { teacher: any }) {
 
 function GradeActivitiesPage({ teacher }: { teacher: any }) {
   const [selectedClass, setSelectedClass] = useState(teacher.classes?.[0] ?? '');
+  const [selectedSubject, setSelectedSubject] = useState(teacher.subjects?.[0] ?? teacher.subject ?? '');
+  const [statusFilter, setStatusFilter] = useState('all');
   const [openActivity, setOpenActivity] = useState<Activity | null>(null);
+  const [overview, setOverview] = useState<any>({ students: [], activities: [] });
   const [grades, setGrades] = useState<Record<string, Record<string, string>>>({});
   const [saved, setSaved] = useState<Record<string, boolean>>({});
 
-  // Filter activities for the teacher's subject that are submitted or graded
-  const classActivities: any[] = [];
-  const studentsInClass: any[] = [];
+  useEffect(() => { api.getTeacherOverview().then(setOverview).catch(() => {}); }, []);
+  const studentsInClass: any[] = overview.students.filter((student: any) => student.className === selectedClass);
+  const classActivities: any[] = overview.activities.filter((activity: any) => {
+    if (activity.subject !== selectedSubject || activity.className !== selectedClass || !activity.submissions?.length) return false;
+    const allGraded = activity.submissions.every((submission: any) => submission.status === 'GRADED');
+    return statusFilter === 'all' || (statusFilter === 'graded' ? allGraded : !allGraded);
+  });
 
   const setGrade = (activityId: string, studentId: string, value: string) => {
     setGrades((prev) => ({
@@ -604,13 +641,29 @@ function GradeActivitiesPage({ teacher }: { teacher: any }) {
     }));
   };
 
-  const handleSaveGrades = (activityId: string) => {
-    setSaved((prev) => ({ ...prev, [activityId]: true }));
-    setOpenActivity(null);
+  const handleSaveGrades = async (activity: any) => {
+    const submissions = activity.submissions ?? [];
+    try {
+      await Promise.all(submissions.map((submission: any) => {
+        const submissionGrades = grades[submission.id] ?? {};
+        return api.gradeSubmission(Number(submission.id), {
+          feedback: '',
+          questions: (submission.answers ?? []).map((answer: any) => ({
+            questionId: answer.questionId,
+            score: submissionGrades[answer.questionId] == null || submissionGrades[answer.questionId] === ''
+              ? answer.score ?? automaticScore(activity.questions?.find((question: any) => question.id === answer.questionId), answer) ?? 0
+              : Number(submissionGrades[answer.questionId]),
+          })),
+        });
+      }));
+      setSaved((prev) => ({ ...prev, [activity.id]: true }));
+      setOpenActivity(null);
+    } catch (error) {
+      setSaved((prev) => ({ ...prev, [activity.id]: false }));
+    }
   };
 
   if (openActivity) {
-    const actGrades = grades[openActivity.id] ?? {};
     return (
       <div className="space-y-6">
         <button
@@ -623,7 +676,7 @@ function GradeActivitiesPage({ teacher }: { teacher: any }) {
 
         <div>
           <p className="text-xs text-gray-500 mb-0.5">
-            {selectedClass} • {teacher.subject}
+            {selectedClass} • {selectedSubject}
           </p>
           <h2 className="text-lg font-semibold">{openActivity.title}</h2>
           <p className="text-sm text-gray-500 mt-0.5">
@@ -638,64 +691,63 @@ function GradeActivitiesPage({ teacher }: { teacher: any }) {
           </div>
         )}
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Lançar notas — {selectedClass}</CardTitle>
-            <CardDescription>Atribua uma nota de 0 a 10 para cada aluno</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Aluno</TableHead>
-                  <TableHead>Matrícula</TableHead>
-                  <TableHead className="w-36">Nota</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {studentsInClass.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={3} className="text-center text-sm text-gray-400 py-6">
-                      Nenhum aluno cadastrado nesta turma.
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  studentsInClass.map((student) => (
-                    <TableRow key={student.id}>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Avatar className="size-8">
-                            <AvatarFallback>
-                              {student.name.split(' ').map((n) => n[0]).join('')}
-                            </AvatarFallback>
-                          </Avatar>
-                          {student.name}
-                        </div>
-                      </TableCell>
-                      <TableCell>{student.enrollment}</TableCell>
-                      <TableCell>
-                        <Input
-                          type="number"
-                          min={0}
-                          max={10}
-                          step={0.1}
-                          placeholder="—"
-                          value={actGrades[student.id] ?? ''}
-                          onChange={(e) => setGrade(openActivity.id, student.id, e.target.value)}
-                          className="h-8 w-24 text-sm"
-                        />
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+        {(openActivity as any).submissions?.map((submission: any) => (
+          <Card key={submission.id}>
+            <CardHeader>
+              <CardTitle className="text-base">{submission.studentName}</CardTitle>
+              <CardDescription>Entrega enviada em {new Date(submission.submittedAt).toLocaleString('pt-BR')}</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {(() => {
+                const submissionGrades = grades[submission.id] ?? {};
+                return (submission.answers ?? []).map((answer: any, index: number) => {
+                const question = (openActivity as any).questions?.find((item: any) => item.id === answer.questionId);
+                const options = parseOptions(question?.options);
+                const autoScore = automaticScore(question, answer);
+                return (
+                  <div key={answer.questionId} className="rounded-lg border p-4 space-y-2">
+                    <p className="text-sm font-medium">Questão {question?.position ?? index + 1}: {question?.prompt}</p>
+                    {options.length > 0 ? (
+                      <div className="space-y-2">
+                        {options.map((option) => (
+                          <div key={option.id} className={`rounded-md border px-3 py-2 text-sm ${answer.answer === option.id ? 'border-blue-500 bg-blue-50 text-blue-900' : 'bg-gray-50'}`}>
+                            <span className="font-semibold mr-2">{option.id.toUpperCase()}.</span>
+                            {option.text}
+                            {answer.answer === option.id && <Badge className="ml-2 bg-blue-600">Resposta do aluno</Badge>}
+                          </div>
+                        ))}
+                        {autoScore !== null && <p className="text-xs text-gray-500">Resposta correta: alternativa {question.correctAnswer.toUpperCase()} | Nota automática: {autoScore}</p>}
+                      </div>
+                    ) : (
+                      <div className="rounded-md bg-gray-50 px-3 py-2 text-sm whitespace-pre-wrap">
+                        {answer.answer || 'O aluno não enviou resposta.'}
+                      </div>
+                    )}
+                    <div className="flex items-center gap-3">
+                      <Label className="text-sm">Nota</Label>
+                      <Input
+                        type="number"
+                        min={0}
+                        max={Number(question?.points ?? 10)}
+                        step={0.1}
+                        placeholder={`0 a ${question?.points ?? 10}`}
+                        value={submissionGrades[answer.questionId] ?? answer.score ?? autoScore ?? ''}
+                        onChange={(e) => setGrade(String(submission.id), String(answer.questionId), e.target.value)}
+                        className="h-8 w-24 text-sm"
+                      />
+                      <span className="text-xs text-gray-500">máximo: {question?.points ?? 10}</span>
+                    </div>
+                  </div>
+                );
+                });
+              })()}
+            </CardContent>
+          </Card>
+        ))}
 
         <div className="sticky bottom-0 bg-white border-t py-4 flex justify-end">
           <Button
-            onClick={() => handleSaveGrades(openActivity.id)}
+            onClick={() => handleSaveGrades(openActivity)}
             className="bg-indigo-600 hover:bg-indigo-700"
           >
             Salvar notas
@@ -714,7 +766,20 @@ function GradeActivitiesPage({ teacher }: { teacher: any }) {
             Selecione a turma e corrija as atividades entregues
           </p>
         </div>
-        <div className="w-48">
+        <div className="flex gap-2 w-full sm:w-auto">
+          <Select value={selectedSubject} onValueChange={setSelectedSubject}>
+            <SelectTrigger className="w-48"><SelectValue placeholder="Matéria" /></SelectTrigger>
+            <SelectContent>{(teacher.subjects ?? [teacher.subject]).filter(Boolean).map((subject: string) => <SelectItem key={subject} value={subject}>{subject}</SelectItem>)}</SelectContent>
+          </Select>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-48"><SelectValue placeholder="Status" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas</SelectItem>
+              <SelectItem value="pending">Não corrigidas</SelectItem>
+              <SelectItem value="graded">Corrigidas</SelectItem>
+            </SelectContent>
+          </Select>
+          <div className="w-48">
           <Select value={selectedClass} onValueChange={setSelectedClass}>
             <SelectTrigger>
               <SelectValue />
@@ -727,6 +792,7 @@ function GradeActivitiesPage({ teacher }: { teacher: any }) {
               ))}
             </SelectContent>
           </Select>
+          </div>
         </div>
       </div>
 
@@ -738,8 +804,9 @@ function GradeActivitiesPage({ teacher }: { teacher: any }) {
       ) : (
         <div className="space-y-3">
           {classActivities.map((activity) => {
-            const submittedCount = studentsInClass.length;
+            const submittedCount = activity.submissions?.length ?? 0;
             const isSaved = saved[activity.id];
+            const allGraded = submittedCount > 0 && activity.submissions.every((submission: any) => submission.status === 'GRADED');
             return (
               <Card
                 key={activity.id}
@@ -749,7 +816,7 @@ function GradeActivitiesPage({ teacher }: { teacher: any }) {
                 <div className="flex">
                   <div
                     className={`w-1 shrink-0 ${
-                      isSaved || activity.status === 'graded' ? 'bg-green-400' : 'bg-blue-400'
+                      isSaved || allGraded ? 'bg-green-400' : 'bg-blue-400'
                     }`}
                   />
                   <div className="flex-1 px-4 py-3 flex items-center gap-4">
@@ -764,10 +831,10 @@ function GradeActivitiesPage({ teacher }: { teacher: any }) {
                     </div>
                     <Badge
                       className={`shrink-0 text-white ${
-                        isSaved || activity.status === 'graded' ? 'bg-green-500' : 'bg-blue-500'
+                        isSaved || allGraded ? 'bg-green-500' : 'bg-blue-500'
                       }`}
                     >
-                      {isSaved || activity.status === 'graded' ? 'Corrigida' : 'Aguardando correção'}
+                      {isSaved || allGraded ? 'Corrigida' : 'Aguardando correção'}
                     </Badge>
                   </div>
                 </div>
@@ -786,6 +853,8 @@ export function TeacherDashboard({ user, onLogout }: TeacherDashboardProps) {
   const [page, setPage] = useState<Page>('dashboard');
   const [showChangePwd, setShowChangePwd] = useState(false);
   const [teacher, setTeacher] = useState<any>(null);
+  const [overview, setOverview] = useState<any>({ students: [], activities: [] });
+  const [selectedDashboardSubject, setSelectedDashboardSubject] = useState('');
 
   useEffect(() => {
     api.getTeacherProfile(Number(user.id)).then((profile: any) => setTeacher({
@@ -794,13 +863,16 @@ export function TeacherDashboard({ user, onLogout }: TeacherDashboardProps) {
       email: profile.user?.email ?? user.email,
       subject: profile.subject,
       classes: profile.classes ?? [],
+      subjects: profile.subjects?.length ? profile.subjects.map((subject: any) => typeof subject === 'string' ? subject : subject.name) : (profile.subject ? [profile.subject] : []),
     })).catch(() => setTeacher({ name: user.name, subject: '', classes: [] }));
   }, [user.id, user.name, user.email]);
+  useEffect(() => { if (teacher && page === 'dashboard') api.getTeacherOverview().then(setOverview).catch(() => {}); }, [teacher, page]);
 
   if (!teacher) return <div className="min-h-screen flex items-center justify-center text-gray-400">Carregando perfil...</div>;
-  const studentsInClasses: any[] = [];
-
-  const toCorrectCount = 0;
+  const subjects: string[] = teacher.subjects ?? [teacher.subject].filter(Boolean);
+  const dashboardSubject = selectedDashboardSubject || subjects[0] || '';
+  const studentsInClasses: any[] = overview.students;
+  const toCorrectCount = overview.activities.reduce((count: number, activity: any) => count + (activity.submissions?.filter((submission: any) => submission.status === 'SUBMITTED').length ?? 0), 0);
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
@@ -817,7 +889,7 @@ export function TeacherDashboard({ user, onLogout }: TeacherDashboardProps) {
             </Avatar>
             <div>
               <p className="font-medium text-sm leading-tight">{user.name}</p>
-              <p className="text-xs text-gray-500">{teacher.subject}</p>
+              <p className="text-xs text-gray-500">{subjects.join(' • ')}</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -905,8 +977,8 @@ export function TeacherDashboard({ user, onLogout }: TeacherDashboardProps) {
                     <BookOpen className="size-4 text-indigo-600" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-lg font-semibold">{teacher.subject}</div>
-                    <p className="text-xs text-gray-500">Matéria lecionada</p>
+                    <div className="text-lg font-semibold">{subjects.length}</div>
+                    <p className="text-xs text-gray-500">Matérias lecionadas</p>
                   </CardContent>
                 </Card>
               </div>
@@ -915,6 +987,10 @@ export function TeacherDashboard({ user, onLogout }: TeacherDashboardProps) {
                 <CardHeader>
                   <CardTitle>Minhas Turmas</CardTitle>
                   <CardDescription>Desempenho dos alunos por turma</CardDescription>
+                  <Select value={dashboardSubject} onValueChange={setSelectedDashboardSubject}>
+                    <SelectTrigger className="w-56"><SelectValue placeholder="Selecione a matéria" /></SelectTrigger>
+                    <SelectContent>{subjects.map((subject) => <SelectItem key={subject} value={subject}>{subject}</SelectItem>)}</SelectContent>
+                  </Select>
                 </CardHeader>
                 <CardContent>
                   <Tabs defaultValue={teacher.classes[0]}>
@@ -932,7 +1008,7 @@ export function TeacherDashboard({ user, onLogout }: TeacherDashboardProps) {
                           <div className="flex items-center justify-between">
                             <h3 className="text-base font-medium">{cls}</h3>
                             <Badge variant="outline">
-                              {studentsInClasses.filter((s) => s.class === cls).length} alunos
+                              {studentsInClasses.filter((s) => s.className === cls).length} alunos
                             </Badge>
                           </div>
                           <Table>
@@ -940,15 +1016,17 @@ export function TeacherDashboard({ user, onLogout }: TeacherDashboardProps) {
                               <TableRow>
                                 <TableHead>Aluno</TableHead>
                                 <TableHead>Matrícula</TableHead>
-                                <TableHead>Média em {teacher.subject}</TableHead>
+                                <TableHead>Média em {dashboardSubject}</TableHead>
                                 <TableHead>Status</TableHead>
                               </TableRow>
                             </TableHeader>
                             <TableBody>
                               {studentsInClasses
-                                .filter((s) => s.class === cls)
+                                .filter((s) => s.className === cls)
                                 .map((student) => {
-                                  const sg = student.grades.find((g) => g.subject === teacher.subject);
+                                  const subjectActivities = overview.activities.filter((activity: any) => activity.subject === dashboardSubject && activity.className === cls);
+                                  const submissions = subjectActivities.flatMap((activity: any) => activity.submissions ?? []).filter((submission: any) => submission.studentName === student.name && submission.status === 'GRADED' && submission.totalScore != null);
+                                  const average = submissions.length ? submissions.reduce((sum: number, submission: any) => sum + Number(submission.totalScore), 0) / submissions.length : null;
                                   return (
                                     <TableRow key={student.id}>
                                       <TableCell>
@@ -963,31 +1041,25 @@ export function TeacherDashboard({ user, onLogout }: TeacherDashboardProps) {
                                       </TableCell>
                                       <TableCell>{student.enrollment}</TableCell>
                                       <TableCell>
-                                        {sg ? (
+                                        {average != null ? (
                                           <span
                                             className={`font-medium ${
-                                              sg.average >= 7
+                                              average > 6
                                                 ? 'text-green-600'
-                                                : sg.average >= 5
+                                                : average === 6
                                                 ? 'text-yellow-600'
                                                 : 'text-red-600'
                                             }`}
                                           >
-                                            {sg.average.toFixed(1)}
+                                            {average.toFixed(1)}
                                           </span>
                                         ) : (
                                           <span className="text-gray-400">N/A</span>
                                         )}
                                       </TableCell>
                                       <TableCell>
-                                        {sg ? (
-                                          sg.status === 'approved' ? (
-                                            <Badge className="bg-green-500">Aprovado</Badge>
-                                          ) : sg.status === 'recovering' ? (
-                                            <Badge className="bg-yellow-500">Recuperação</Badge>
-                                          ) : (
-                                            <Badge className="bg-red-500">Reprovado</Badge>
-                                          )
+                                        {average != null ? (
+                                          average > 6 ? <Badge className="bg-green-500">Aprovado</Badge> : average === 6 ? <Badge className="bg-yellow-500">Média mínima</Badge> : <Badge className="bg-red-500">Atenção</Badge>
                                         ) : (
                                           <Badge variant="outline">Sem dados</Badge>
                                         )}
