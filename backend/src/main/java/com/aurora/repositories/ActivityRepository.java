@@ -10,5 +10,6 @@ import java.util.List;
 public interface ActivityRepository extends JpaRepository<Activity, Long> {
     List<Activity> findByTeacher(Teacher teacher);
     List<Activity> findBySubject(String subject);
-    List<Activity> findByStatus(Activity.Status status);
+    List<Activity> findByOrganizationKeyOrderByCreatedAtDesc(String organizationKey);
+    List<Activity> findByTeacherOrderByCreatedAtDesc(Teacher teacher);
 }

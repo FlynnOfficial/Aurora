@@ -4,7 +4,7 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { CheckCircle, Eye, EyeOff, KeyRound, X } from 'lucide-react';
 
-type Step = 'fields' | 'code' | 'done';
+type Step = 'fields' | 'done';
 
 interface ChangePasswordModalProps {
   onClose: () => void;
@@ -15,7 +15,6 @@ export function ChangePasswordModal({ onClose }: ChangePasswordModalProps) {
   const [current, setCurrent] = useState('');
   const [next, setNext] = useState('');
   const [confirm, setConfirm] = useState('');
-  const [code, setCode] = useState('');
   const [showNext, setShowNext] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
@@ -96,33 +95,8 @@ export function ChangePasswordModal({ onClose }: ChangePasswordModalProps) {
             </div>
             <Button
               className="w-full bg-purple-600 hover:bg-purple-700"
-              onClick={() => { if (validateFields()) setStep('code'); }}
-            >
-              Continuar
-            </Button>
-          </div>
-        )}
-
-        {step === 'code' && (
-          <div className="space-y-3">
-            <p className="text-sm text-gray-500">
-              Um código de 6 dígitos foi enviado ao seu e-mail cadastrado. Digite abaixo para confirmar.
-            </p>
-            <div className="space-y-1">
-              <Label className="text-xs">Código de verificação</Label>
-              <Input
-                placeholder="000000"
-                maxLength={6}
-                value={code}
-                onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
-                className="tracking-widest text-center text-lg"
-              />
-            </div>
-            <p className="text-xs text-gray-400">Demo: qualquer sequência de 6 dígitos.</p>
-            <Button
-              className="w-full bg-purple-600 hover:bg-purple-700"
-              disabled={code.length !== 6 || submitting}
               onClick={async () => {
+                if (!validateFields()) return;
                 setSubmitting(true);
                 try {
                   const { api } = await import('../../services/api');
@@ -130,15 +104,15 @@ export function ChangePasswordModal({ onClose }: ChangePasswordModalProps) {
                   await api.changePassword(userId, current, next);
                   setStep('done');
                 } catch (error) {
-                  setErrors({ code: error instanceof Error ? error.message : 'Não foi possível alterar a senha' });
+                  setErrors({ current: error instanceof Error ? error.message : 'Não foi possível alterar a senha' });
                 } finally {
                   setSubmitting(false);
                 }
               }}
+              disabled={submitting}
             >
-              Confirmar
+              Continuar
             </Button>
-            {errors.code && <p className="text-xs text-red-500 text-center">{errors.code}</p>}
           </div>
         )}
 

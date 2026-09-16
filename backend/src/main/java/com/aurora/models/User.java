@@ -5,6 +5,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import jakarta.persistence.*;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.time.LocalDateTime;
 
 @Entity
@@ -22,10 +23,14 @@ public class User {
     private String email;
 
     @Column(nullable = false)
+    @JsonIgnore
     private String password;
 
     @Column(nullable = false)
     private String name;
+
+    @Column(name = "organization_key", nullable = false)
+    private String organizationKey;
 
     @Column(nullable = false)
     @Enumerated(EnumType.STRING)
@@ -42,6 +47,12 @@ public class User {
 
     @Column(name = "failed_attempts", columnDefinition = "INT DEFAULT 0")
     private Integer failedAttempts = 0;
+
+    @Transient
+    private String assignedSubject;
+
+    @Transient
+    private java.util.Set<String> assignedClasses;
 
     @PrePersist
     protected void onCreate() {

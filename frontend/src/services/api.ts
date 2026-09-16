@@ -17,66 +17,16 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   return body as T;
 }
 
-// Helper functions for localStorage-based auth
-function findUserByEmail(email: string) {
-  // Check super admins FIRST (highest priority)
-  const superAdmins = JSON.parse(localStorage.getItem('super_admins') || '[]');
-  const superAdmin = superAdmins.find((a: any) => a.email?.toLowerCase() === email.toLowerCase());
-  if (superAdmin) return { ...superAdmin, userType: 'SUPER_ADMIN' };
-
-  // Check admins
-  const admins = JSON.parse(localStorage.getItem('admins') || '[]');
-  const admin = admins.find((a: any) => a.email?.toLowerCase() === email.toLowerCase());
-  if (admin) return { ...admin, userType: 'ADMIN' };
-
-  // Check teachers
-  const teachers = JSON.parse(localStorage.getItem('teachers') || '[]');
-  const teacher = teachers.find((t: any) => t.email?.toLowerCase() === email.toLowerCase());
-  if (teacher) return { ...teacher, userType: 'TEACHER' };
-
-  // Check students
-  const students = JSON.parse(localStorage.getItem('students') || '[]');
-  const student = students.find((s: any) => s.email?.toLowerCase() === email.toLowerCase());
-  if (student) return { ...student, userType: 'STUDENT' };
-
-  return null;
-}
-
-function loginLocal(email: string, password: string) {
-  const user = findUserByEmail(email);
-  console.log('DEBUG - Trying to login:', { email, password, foundUser: user });
-  if (!user || user.password !== password) {
-    console.log('DEBUG - Login failed. User found:', !!user, 'Password match:', user?.password === password);
-    throw new Error('E-mail ou senha incorretos');
-  }
-
-  const token = btoa(`${email}:${password}`);
-  return {
-    accessToken: token,
-    userId: user.id,
-    name: user.name,
-    email: user.email,
-    role: user.userType,
-  };
-}
-
 export const api = {
   // Auth endpoints
-  login: async (email: string, password: string) => {
-    try {
-      return await request('/auth/login', {
-        method: 'POST',
-        body: JSON.stringify({ email, password }),
-      });
-    } catch (err) {
-      // Fallback to localStorage
-      return loginLocal(email, password);
-    }
-  },
+  login: (email: string, password: string) => request('/auth/login', {
+    method: 'POST',
+    body: JSON.stringify({ email, password }),
+  }),
 
-  register: (email: string, password: string, name: string, role: string) => request('/auth/register', {
+  register: (email: string, password: string, name: string, organizationKey: string) => request('/auth/register', {
       method: 'POST',
-      body: JSON.stringify({ email, password, name, role }),
+      body: JSON.stringify({ email, password, name, organizationKey }),
     }),
 
   changePassword: (userId: number, oldPassword: string, newPassword: string) => request('/auth/change-password', {
@@ -94,10 +44,42 @@ export const api = {
   // Teacher endpoints
   getTeacherProfile: (userId: number) => request(`/teachers/${userId}`),
 
+  getTeacherActivities: () => request('/activities/teacher'),
+
+  createActivity: (activity: unknown) => request('/activities', {
+    method: 'POST',
+    body: JSON.stringify(activity),
+  }),
+
+  getActivitySubmissions: (activityId: number) => request(`/activities/${activityId}/submissions`),
+
+  gradeSubmission: (submissionId: number, grade: unknown) => request(`/activities/submissions/${submissionId}/grade`, {
+    method: 'PUT',
+    body: JSON.stringify(grade),
+  }),
+
+  getStudentActivities: () => request('/activities/student'),
+
+  submitActivity: (activityId: number, answers: unknown[]) => request(`/activities/${activityId}/submit`, {
+    method: 'POST',
+    body: JSON.stringify(answers),
+  }),
+
   // Admin endpoints
   getPendingRegistrations: () => request('/admin/registrations/pending'),
+
+  getRegistrations: () => request('/admin/registrations'),
 
   approveRegistration: (registrationId: number) => request(`/admin/registrations/${registrationId}/approve`, { method: 'PUT' }),
 
   rejectRegistration: (registrationId: number) => request(`/admin/registrations/${registrationId}/reject`, { method: 'PUT' }),
+  getAdminUsers: () => request('/admin/users'),
+  deactivateUser: (userId: number) => request(`/admin/users/${userId}`, { method: 'DELETE' }),
+  createAdminUser: (input: unknown) => request('/admin/users', { method: 'POST', body: JSON.stringify(input) }),
+  getClasses: () => request('/admin/classes'),
+  createClass: (name: string, schoolYear: number) => request('/admin/classes', { method: 'POST', body: JSON.stringify({ name, schoolYear }) }),
+  deleteClass: (id: number) => request(`/admin/classes/${id}`, { method: 'DELETE' }),
+  getSubjects: () => request('/admin/subjects'),
+  createSubject: (name: string) => request('/admin/subjects', { method: 'POST', body: JSON.stringify({ name }) }),
+  deleteSubject: (id: number) => request(`/admin/subjects/${id}`, { method: 'DELETE' }),
 };

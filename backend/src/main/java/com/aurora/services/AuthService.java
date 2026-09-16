@@ -1,7 +1,9 @@
 package com.aurora.services;
 
 import com.aurora.models.User;
+import com.aurora.models.Registration;
 import com.aurora.repositories.UserRepository;
+import com.aurora.repositories.RegistrationRepository;
 import com.aurora.utils.JWTUtil;
 import com.aurora.utils.RateLimitingUtil;
 import com.aurora.utils.InputSanitizer;
@@ -19,6 +21,7 @@ import java.util.Optional;
 @Slf4j
 public class AuthService {
     private final UserRepository userRepository;
+    private final RegistrationRepository registrationRepository;
     private final JWTUtil jwtUtil;
     private final PasswordEncoder passwordEncoder;
     private final RateLimitingUtil rateLimitingUtil;
@@ -35,7 +38,7 @@ public class AuthService {
                 throw new Exception("Conta bloqueada temporariamente. Tente novamente em 15 minutos.");
             }
 
-            Optional<User> user = userRepository.findByEmail(email);
+            Optional<User> user = userRepository.findByEmailIgnoreCase(email);
             if (user.isEmpty()) {
                 rateLimitingUtil.recordFailedAttempt(email);
                 auditService.logLoginAttempt(email, false, ipAddress, userAgent);
@@ -110,7 +113,7 @@ public class AuthService {
         }
     }
 
-    public User registerUser(String email, String password, String name, User.UserRole role, String ipAddress) throws Exception {
+    public void requestAdminRegistration(String email, String password, String name, String organizationKey, String ipAddress) throws Exception {
         try {
             email = inputSanitizer.sanitizeEmail(email);
             password = inputSanitizer.sanitizePassword(password);
@@ -125,18 +128,24 @@ public class AuthService {
                 throw new Exception("Email já cadastrado");
             }
 
-            User newUser = new User();
-            newUser.setEmail(email);
-            newUser.setPassword(passwordEncoder.encode(password));
-            newUser.setName(name);
-            newUser.setRole(role);
-            newUser.setActive(true);
+            if (organizationKey == null || organizationKey.isBlank()) {
+                throw new Exception("Organizacao/escola obrigatoria");
+            }
+            if (registrationRepository.existsByEmailAndStatus(email, Registration.Status.PENDING)) {
+                throw new Exception("Ja existe uma solicitacao pendente para este email");
+            }
 
-            User savedUser = userRepository.save(newUser);
-            auditService.logSecurityEvent(email, "REGISTRATION", "Novo usuário registrado", ipAddress);
-
-            log.info("Novo usuário registrado: {}", email);
-            return savedUser;
+                Registration registration = Registration.builder()
+                    .type(Registration.RegistrationType.ADMIN)
+                    .email(email)
+                    .name(name)
+                    .password(passwordEncoder.encode(password))
+                    .organizationKey(inputSanitizer.sanitizeText(organizationKey))
+                    .status(Registration.Status.PENDING)
+                    .build();
+                registrationRepository.save(registration);
+                auditService.logSecurityEvent(email, "ADMIN_REGISTRATION_REQUESTED", "Solicitacao de Admin aguardando aprovacao", ipAddress);
+                log.info("Solicitacao de Admin criada para: {}", email);
         } catch (Exception e) {
             log.error("Erro ao registrar usuário: {}", e.getMessage());
             throw e;

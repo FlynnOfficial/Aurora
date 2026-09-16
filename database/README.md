@@ -1,4 +1,4 @@
-# 📊 Aurora School System - Database Setup
+# Aurora School System - Database Setup
 
 ## Visão Geral
 
@@ -7,15 +7,25 @@ Este diretório contém os scripts SQL para inicializar e gerenciar o banco de d
 ## Estrutura de Arquivos
 
 - **schema.sql** - Criação das tabelas, índices e constraints
-- **init.sql** - Dados iniciais para testes e demo
+- **init.sql** - Dados legados de desenvolvimento; não execute em produção
 
-## Requisitos
+## Produção com Supabase
 
-- MySQL 8.0+
-- MariaDB 10.5+
+1. Crie um projeto em supabase.com e abra o SQL Editor.
+2. Execute [supabase_schema.sql](supabase_schema.sql) inteiro.
+3. Em Project Settings, copie a conexão **Transaction Pooler** (porta `6543`).
+4. Configure no backend `DB_URL`, `DB_USERNAME`, `DB_PASSWORD` e `JWT_SECRET` usando [backend/.env.example](../backend/.env.example).
+5. Mantenha `spring.jpa.hibernate.ddl-auto=validate`; alterações futuras devem ser SQL versionado, nunca DDL automático.
+6. Crie o primeiro Super Admin diretamente no banco com uma senha BCrypt gerada pela aplicação. O site não cadastra Super Admin.
+
+O backend usa uma conexão privada com o banco e aplica o `organization_key` em todas as consultas de domínio. Não exponha a senha do banco, `service_role` ou `JWT_SECRET` no Vercel/frontend.
+
+## Requisitos locais
+
+- PostgreSQL 16+
 - Permissões de root ou sudo para criar banco de dados
 
-## Instalação no Windows
+## Instalação local
 
 ### 1. Criar Banco de Dados
 
@@ -23,9 +33,8 @@ No MySQL Workbench, abra `schema.sql`, execute o script inteiro e depois execute
 `init.sql`. Se o cliente de linha de comando estiver instalado, use PowerShell:
 
 ```powershell
-mysql.exe -u root -p < schema.sql
-mysql.exe -u root -p aurora_db < init.sql
-mysql.exe -u root -p -e "USE aurora_db; SHOW TABLES;"
+docker compose up -d aurora-postgres backend
+docker compose ps
 ```
 
 O serviço precisa estar iniciado. No Windows, verifique em `services.msc` ou
@@ -50,31 +59,7 @@ mvn spring-boot:run
 ### Comandos úteis
 
 ```bash
-# Opção 1: Via MySQL CLI
-mysql -u root -p < schema.sql
-
-# Opção 2: Manualmente
-mysql -u root -p
-mysql> source schema.sql;
-
-# Opção 1: Via MySQL CLI
-mysql -u root -p aurora_db < init.sql
-
-# Opção 2: Manualmente
-mysql -u root -p
-mysql> use aurora_db;
-mysql> source init.sql;
-
-# Verificar instalação
-mysql -u root -p -e "USE aurora_db; SHOW TABLES;"
-
-# Credênciais demo
-Tipo	   | Email	                    | Senha
-------------------------------------------------------
-SuperAdmin | superadmin@escola.com	    | Super@Admin1
-Admin	   | helena.costa@escola.com	| admin123
-Teacher    | carlos.oliveira@escola.com | Sprof123
-Student    | maria.silva@escola.com	    | aluno123
+Não execute `init.sql` em produção: ele é legado de desenvolvimento.
 
 # Backup completo
 mysqldump -u root -p aurora_db > backup_$(date +%Y%m%d_%H%M%S).sql
@@ -113,6 +98,7 @@ mysql> FLUSH PRIVILEGES;
 
 # Verificar conexão
 mysql -h localhost -u root -p
+
 
 # Reset de senha (MySQL 8.0)
 sudo /usr/sbin/mysqld --skip-grant-tables

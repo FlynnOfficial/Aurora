@@ -22,6 +22,9 @@ public class Teacher {
     @JoinColumn(name = "user_id", nullable = false, unique = true)
     private User user;
 
+    @Column(name = "organization_key", nullable = false)
+    private String organizationKey;
+
     @Column(nullable = false)
     private String subject;
 

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Avatar, AvatarFallback } from './ui/avatar';
@@ -30,6 +30,7 @@ import {
 } from 'lucide-react';
 import { ChangePasswordModal } from './ChangePasswordModal';
 import { mockStudents, mockActivities, Activity, Question } from '../data/mockData';
+import { api } from '../../services/api';
 
 interface StudentDashboardProps {
   user: any;
@@ -65,8 +66,11 @@ function ActivitySolver({
     setAnswers((prev) => ({ ...prev, [qid]: value }));
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (answered < total) return;
+    await api.submitActivity(Number(activity.id), Object.entries(answers).map(([questionId, answer]) => ({
+      questionId: Number(questionId), answer,
+    })));
     setSubmitted(true);
   };
 
@@ -197,19 +201,36 @@ function ActivitySolver({
 // ── Activities list page ──────────────────────────────────────────────────────
 
 function ActivitiesPage({ onOpen }: { onOpen: (a: Activity) => void }) {
-  const student = mockStudents[0];
-  const subjects = student.grades.map((g) => g.subject);
+  const [activities, setActivities] = useState<Activity[]>([]);
+  const [error, setError] = useState('');
 
-  const activitiesBySubject = subjects.map((subject) => ({
-    subject,
-    items: mockActivities.filter((a) => a.subject === subject),
-  })).filter((group) => group.items.length > 0);
+  useEffect(() => {
+    api.getStudentActivities()
+      .then((items: any[]) => setActivities(items.map((activity) => ({
+        id: String(activity.id), title: activity.title, subject: activity.subject,
+        teacher: activity.teacherName, description: activity.description ?? '', dueDate: activity.dueDate,
+        status: activity.submission?.status?.toLowerCase() ?? 'pending',
+        grade: activity.submission?.totalScore == null ? undefined : Number(activity.submission.totalScore),
+        questions: (activity.questions ?? []).map((question: any) => ({
+          id: String(question.id), type: question.type === 'ESSAY' ? 'essay' : 'multiple_choice',
+          statement: question.prompt, placeholder: '',
+          options: question.options ? JSON.parse(question.options) : [],
+        })),
+      }))))
+      .catch((requestError) => setError(requestError instanceof Error ? requestError.message : 'Erro ao carregar atividades'));
+  }, []);
+
+  const activitiesBySubject = Array.from(new Set(activities.map((activity) => activity.subject))).map((subject) => ({
+    subject, items: activities.filter((activity) => activity.subject === subject),
+  }));
 
   const now = new Date();
-  const pendingCount = mockActivities.filter((a) => a.status === 'pending' && new Date(a.dueDate) >= now).length;
-  const encerradoCount = mockActivities.filter((a) => a.status === 'pending' && new Date(a.dueDate) < now).length;
-  const submittedCount = mockActivities.filter((a) => a.status === 'submitted').length;
-  const gradedCount = mockActivities.filter((a) => a.status === 'graded').length;
+  const pendingCount = activities.filter((a) => a.status === 'pending' && new Date(a.dueDate) >= now).length;
+  const encerradoCount = activities.filter((a) => a.status === 'pending' && new Date(a.dueDate) < now).length;
+  const submittedCount = activities.filter((a) => a.status === 'submitted').length;
+  const gradedCount = activities.filter((a) => a.status === 'graded').length;
+
+  if (error) return <div className="py-16 text-center text-red-500">{error}</div>;
 
   return (
     <div className="space-y-6">

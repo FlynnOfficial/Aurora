@@ -62,7 +62,7 @@ public class DatabaseConfig {
         config.addDataSourceProperty("cachePrepStmts", "true");
         config.addDataSourceProperty("prepStmtCacheSize", "250");
         config.addDataSourceProperty("prepStmtCacheSqlLimit", "2048");
-        config.addDataSourceProperty("useServerPrepStmts", "true");
+        config.addDataSourceProperty("prepareThreshold", "0");
         config.addDataSourceProperty("rewriteBatchedStatements", "true");
 
         // Proteção contra SQL Injection

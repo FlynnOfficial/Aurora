@@ -73,15 +73,15 @@ public class AuthController {
         try {
             String ipAddress = getClientIp(httpRequest);
 
-            authService.registerUser(
+                authService.requestAdminRegistration(
                     request.email, 
                     request.password, 
                     request.name, 
-                    request.role,
+                    request.organizationKey,
                     ipAddress
             );
             Map<String, String> response = new HashMap<>();
-            response.put("message", "Usuário registrado com sucesso");
+            response.put("message", "Solicitacao enviada. Um Super Admin precisa aprovar o cadastro antes do primeiro acesso.");
             return ResponseEntity.status(HttpStatus.CREATED).body(response);
         } catch (Exception e) {
             log.error("Erro no registro: {}", e.getMessage());
@@ -123,7 +123,7 @@ public class AuthController {
         public String email;
         public String password;
         public String name;
-        public User.UserRole role;
+        public String organizationKey;
     }
 
     public static class ChangePasswordRequest {

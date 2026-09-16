@@ -13,6 +13,7 @@ import {
   CheckCircle,
   RefreshCw,
 } from 'lucide-react';
+import { api } from '../../services/api';
 
 interface RegisterProps {
   onBack: () => void;
@@ -163,9 +164,9 @@ function SuccessStep({ onBack }: { onBack: () => void }) {
       <div className="space-y-1">
         <p className="font-semibold text-lg">Cadastro Realizado!</p>
         <p className="text-sm text-gray-500">
-          Sua conta de administrador foi criada com sucesso.
+          Sua solicitação de administrador foi enviada.
           <br />
-          Você já pode fazer login com suas credenciais.
+          Um Super Admin precisa aprová-la antes do primeiro acesso.
         </p>
       </div>
       <Button onClick={onBack} className="w-full bg-purple-600 hover:bg-purple-700">
@@ -177,10 +178,11 @@ function SuccessStep({ onBack }: { onBack: () => void }) {
 
 // ── Admin registration form ───────────────────────────────────────────────────
 
-function AdminForm({ onSubmit }: { onSubmit: (fields: { email: string; password: string; name: string }) => void }) {
+function AdminForm({ onSubmit }: { onSubmit: (fields: { email: string; password: string; name: string; organizationKey: string }) => void }) {
   const [fields, setFields] = useState({
     name: '',
     email: '',
+    organizationKey: '',
     password: '',
     confirma: '',
   });
@@ -204,6 +206,7 @@ function AdminForm({ onSubmit }: { onSubmit: (fields: { email: string; password:
     const errs: Record<string, string> = {};
     if (!fields.name.trim()) errs.name = 'Obrigatório';
     if (!fields.email.includes('@')) errs.email = 'E-mail inválido';
+    if (!fields.organizationKey.trim()) errs.organizationKey = 'Informe a organização/escola';
     if (!allPasswordRulesPassed) errs.password = 'Senha não atende os requisitos';
     if (fields.password !== fields.confirma) errs.confirma = 'As senhas não coincidem';
     if (!termos) errs.termos = 'Aceite os termos para continuar';
@@ -218,7 +221,7 @@ function AdminForm({ onSubmit }: { onSubmit: (fields: { email: string; password:
     }
 
     if (Object.keys(errs).length > 0) { setErrors(errs); return; }
-    onSubmit({ email: fields.email, password: fields.password, name: fields.name });
+    onSubmit({ email: fields.email, password: fields.password, name: fields.name, organizationKey: fields.organizationKey });
   };
 
   return (
@@ -244,6 +247,13 @@ function AdminForm({ onSubmit }: { onSubmit: (fields: { email: string; password:
           className={errors.email ? 'border-red-400' : ''}
         />
         {errors.email && <p className="text-xs text-red-500">{errors.email}</p>}
+      </div>
+
+      <div className="space-y-1.5">
+        <Label>Organização / Escola *</Label>
+        <Input placeholder="Nome ou identificador da escola" value={fields.organizationKey}
+          onChange={(e) => set('organizationKey', e.target.value)} className={errors.organizationKey ? 'border-red-400' : ''} />
+        {errors.organizationKey && <p className="text-xs text-red-500">{errors.organizationKey}</p>}
       </div>
 
       <div className="space-y-1.5">
@@ -333,19 +343,16 @@ type Step = 'form' | 'success';
 
 export function Register({ onBack }: RegisterProps) {
   const [step, setStep] = useState<Step>('form');
+  const [error, setError] = useState('');
 
-  const handleRegister = (fields: { email: string; password: string; name: string }) => {
-    // Save to localStorage
-    const admins = JSON.parse(localStorage.getItem('admins') || '[]');
-    admins.push({
-      id: crypto.randomUUID(),
-      email: fields.email,
-      password: fields.password,
-      name: fields.name,
-      role: 'admin',
-    });
-    localStorage.setItem('admins', JSON.stringify(admins));
-    setStep('success');
+  const handleRegister = async (fields: { email: string; password: string; name: string; organizationKey: string }) => {
+    try {
+      setError('');
+      await api.register(fields.email, fields.password, fields.name, fields.organizationKey);
+      setStep('success');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Não foi possível enviar a solicitação');
+    }
   };
 
   return (
@@ -372,6 +379,7 @@ export function Register({ onBack }: RegisterProps) {
         </CardHeader>
 
         <CardContent>
+          {error && <p className="mb-4 text-sm text-red-600">{error}</p>}
           {step === 'form' && <AdminForm onSubmit={handleRegister} />}
           {step === 'success' && <SuccessStep onBack={onBack} />}
         </CardContent>

@@ -18,10 +18,6 @@ export function Login({ onLogin, onRegister }: LoginProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    console.log('localStorage.teachers:', JSON.parse(localStorage.getItem('teachers')||'[]'));
-    console.log('localStorage.students:', JSON.parse(localStorage.getItem('students')||'[]'));
-    console.log('localStorage.admins:', JSON.parse(localStorage.getItem('admins')||'[]'));
-
     try {
       const { api } = await import('../../services/api');
       const response = await api.login(email, password);

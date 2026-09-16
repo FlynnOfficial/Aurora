@@ -5,6 +5,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import jakarta.persistence.*;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 @Entity
 @Table(name = "registrations")
@@ -25,6 +26,19 @@ public class Registration {
     private String data;
 
     @Column(nullable = false)
+    private String email;
+
+    @Column(nullable = false)
+    private String name;
+
+    @Column(nullable = false)
+    @JsonIgnore
+    private String password;
+
+    @Column(name = "organization_key", nullable = false)
+    private String organizationKey;
+
+    @Column(nullable = false)
     @Enumerated(EnumType.STRING)
     private Status status;
 
@@ -37,7 +51,7 @@ public class Registration {
     }
 
     public enum RegistrationType {
-        FISICA, JURIDICA
+        ADMIN
     }
 
     public enum Status {

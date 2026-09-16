@@ -4,6 +4,9 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import jakarta.persistence.*;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "activities")
@@ -28,25 +31,25 @@ public class Activity {
     @Column(columnDefinition = "TEXT")
     private String description;
 
-    @Column(nullable = false)
-    private String dueDate;
+    @Column(name = "class_name", nullable = false)
+    private String className;
 
-    @Column(nullable = false)
-    @Enumerated(EnumType.STRING)
-    private Status status;
+    @Column(name = "organization_key", nullable = false)
+    private String organizationKey;
 
-    @Column(columnDefinition = "LONGTEXT")
-    private String questions; // JSON format
+    @Column(name = "due_date", nullable = false)
+    private Instant dueDate;
 
-    @Column(name = "created_at", nullable = false, columnDefinition = "TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
-    private Long createdAt;
+    @Column(name = "created_at", nullable = false)
+    private Instant createdAt;
+
+    @OneToMany(mappedBy = "activity", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("position ASC")
+    private List<ActivityQuestion> questionItems = new ArrayList<>();
 
     @PrePersist
     protected void onCreate() {
-        createdAt = System.currentTimeMillis();
+        createdAt = Instant.now();
     }
 
-    public enum Status {
-        PENDING, SUBMITTED, GRADED
-    }
 }

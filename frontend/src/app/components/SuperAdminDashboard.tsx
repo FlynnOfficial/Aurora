@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Avatar, AvatarFallback } from './ui/avatar';
@@ -16,12 +16,7 @@ import {
   KeyRound,
 } from 'lucide-react';
 import { ChangePasswordModal } from './ChangePasswordModal';
-import {
-  mockPendingRegistrations,
-  PendingRegistration,
-  PendingRegistrationFisica,
-  PendingRegistrationJuridica,
-} from '../data/mockData';
+import { api } from '../../services/api';
 
 interface SuperAdminDashboardProps {
   user: any;
@@ -37,55 +32,18 @@ function FieldRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-function FisicaDetail({ data }: { data: PendingRegistrationFisica }) {
-  return (
-    <div>
-      <FieldRow label="CPF" value={data.cpf} />
-      <FieldRow label="Nome completo" value={`${data.nome} ${data.sobrenome}`} />
-      <FieldRow label="Data de nascimento" value={new Date(data.dataNascimento).toLocaleDateString('pt-BR')} />
-      <FieldRow label="E-mail" value={data.email} />
-      <FieldRow label="Telefone" value={data.telefone} />
-    </div>
-  );
-}
-
-function JuridicaDetail({ data }: { data: PendingRegistrationJuridica }) {
-  return (
-    <div>
-      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1 mt-1">Empresa</p>
-      <FieldRow label="CNPJ" value={data.cnpj} />
-      <FieldRow label="Nome da empresa" value={data.nomeEmpresa} />
-      <FieldRow label="Razão social" value={data.razaoSocial} />
-      <FieldRow label="Endereço" value={data.endereco} />
-      <FieldRow label="Telefone comercial" value={data.telefoneComercial} />
-      <FieldRow label="E-mail institucional" value={data.emailInstitucional} />
-      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1 mt-3">Representante Legal</p>
-      <FieldRow label="Nome" value={`${data.nomeRepresentante} ${data.sobrenomeRepresentante}`} />
-      <FieldRow label="CPF" value={data.cpfRepresentante} />
-      <FieldRow label="Cargo" value={data.cargoRepresentante} />
-      <FieldRow label="Telefone" value={data.telefoneRepresentante} />
-    </div>
-  );
-}
-
 function RegistrationCard({
   reg,
   onApprove,
   onReject,
 }: {
-  reg: PendingRegistration;
+  reg: any;
   onApprove: () => void;
   onReject: () => void;
 }) {
   const [expanded, setExpanded] = useState(false);
-  const isFisica = reg.data.type === 'fisica';
-  const displayName =
-    isFisica
-      ? `${(reg.data as PendingRegistrationFisica).nome} ${(reg.data as PendingRegistrationFisica).sobrenome}`
-      : (reg.data as PendingRegistrationJuridica).nomeEmpresa;
-  const displaySub = isFisica
-    ? (reg.data as PendingRegistrationFisica).email
-    : (reg.data as PendingRegistrationJuridica).emailInstitucional;
+  const displayName = reg.name;
+  const displaySub = reg.email;
 
   const statusColor =
     reg.status === 'pending'
@@ -113,14 +71,10 @@ function RegistrationCard({
           <div className="flex items-center gap-3">
             <div
               className={`size-9 rounded-full flex items-center justify-center shrink-0 ${
-                isFisica ? 'bg-blue-100' : 'bg-indigo-100'
+                'bg-blue-100'
               }`}
             >
-              {isFisica ? (
-                <User className="size-4 text-blue-600" />
-              ) : (
-                <Building2 className="size-4 text-indigo-600" />
-              )}
+              <User className="size-4 text-blue-600" />
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium truncate">{displayName}</p>
@@ -128,7 +82,7 @@ function RegistrationCard({
             </div>
             <div className="flex items-center gap-2 shrink-0">
               <Badge className="hidden sm:inline-flex text-xs" variant="outline">
-                {isFisica ? 'Pessoa Física' : 'Pessoa Jurídica'}
+                Admin
               </Badge>
               <Badge className={`${statusColor} text-white text-xs`}>{statusLabel}</Badge>
               <button
@@ -150,11 +104,10 @@ function RegistrationCard({
                   hour: '2-digit', minute: '2-digit',
                 })}
               </p>
-              {isFisica ? (
-                <FisicaDetail data={reg.data as PendingRegistrationFisica} />
-              ) : (
-                <JuridicaDetail data={reg.data as PendingRegistrationJuridica} />
-              )}
+              <div>
+                <FieldRow label="E-mail" value={reg.email} />
+                <FieldRow label="Organização" value={reg.organizationKey} />
+              </div>
 
               {reg.status === 'pending' && (
                 <div className="flex gap-2 mt-4 justify-end">
@@ -186,19 +139,39 @@ function RegistrationCard({
 }
 
 export function SuperAdminDashboard({ user, onLogout }: SuperAdminDashboardProps) {
-  const [registrations, setRegistrations] = useState<PendingRegistration[]>(mockPendingRegistrations);
+  const [registrations, setRegistrations] = useState<any[]>([]);
   const [showChangePwd, setShowChangePwd] = useState(false);
   const [filter, setFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('pending');
+  const [actionError, setActionError] = useState('');
 
-  const approve = (id: string) =>
-    setRegistrations((prev) =>
-      prev.map((r) => (r.id === id ? { ...r, status: 'approved' } : r))
-    );
+  useEffect(() => {
+    api.getRegistrations()
+      .then((items: any[]) => setRegistrations(items.map((item) => ({
+        ...item,
+        status: String(item.status).toLowerCase(),
+      }))))
+      .catch(() => setRegistrations([]));
+  }, []);
 
-  const reject = (id: string) =>
-    setRegistrations((prev) =>
-      prev.map((r) => (r.id === id ? { ...r, status: 'rejected' } : r))
-    );
+  const approve = async (id: number) => {
+    try {
+      setActionError('');
+      await api.approveRegistration(id);
+      setRegistrations((prev) => prev.map((r) => r.id === id ? { ...r, status: 'approved' } : r));
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : 'Não foi possível aprovar o cadastro');
+    }
+  };
+
+  const reject = async (id: number) => {
+    try {
+      setActionError('');
+      await api.rejectRegistration(id);
+      setRegistrations((prev) => prev.map((r) => r.id === id ? { ...r, status: 'rejected' } : r));
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : 'Não foi possível rejeitar o cadastro');
+    }
+  };
 
   const pendingCount = registrations.filter((r) => r.status === 'pending').length;
   const approvedCount = registrations.filter((r) => r.status === 'approved').length;
@@ -301,6 +274,7 @@ export function SuperAdminDashboard({ user, onLogout }: SuperAdminDashboardProps
             </div>
           </CardHeader>
           <CardContent className="space-y-3">
+            {actionError && <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{actionError}</p>}
             {filtered.length === 0 ? (
               <div className="text-center py-12 text-gray-400">
                 <ShieldCheck className="size-10 mx-auto mb-3 opacity-30" />

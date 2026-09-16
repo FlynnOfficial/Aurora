@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -39,7 +39,8 @@ import {
   Calendar,
 } from 'lucide-react';
 import { ChangePasswordModal } from './ChangePasswordModal';
-import { mockStudents, mockTeachers, mockActivities, Activity, Question } from '../data/mockData';
+import { mockTeachers, Activity, Question } from '../data/mockData';
+import { api } from '../../services/api';
 
 interface TeacherDashboardProps {
   user: any;
@@ -57,22 +58,10 @@ interface DraftQuestion {
   options: { id: string; text: string }[];
   placeholder: string;
   correctAnswer?: string; // for multiple choice: option id, for essay: free text
+  points: number;
 }
 
 const OPTION_LETTERS = ['a', 'b', 'c', 'd', 'e'];
-
-const ACTIVITY_TEMPLATES = [
-  'Prova Bimestral',
-  'Lista de Exercícios',
-  'Trabalho em Grupo',
-  'Redação',
-  'Quiz',
-  'Pesquisa',
-  'Projeto',
-  'Avaliação',
-  'Recuperação',
-  'Desafio',
-];
 
 function newQuestion(type: 'multiple_choice' | 'essay'): DraftQuestion {
   return {
@@ -84,6 +73,7 @@ function newQuestion(type: 'multiple_choice' | 'essay'): DraftQuestion {
         ? OPTION_LETTERS.slice(0, 4).map((id) => ({ id, text: '' }))
         : [],
     placeholder: '',
+    points: 1,
   };
 }
 
@@ -91,11 +81,30 @@ function newQuestion(type: 'multiple_choice' | 'essay'): DraftQuestion {
 
 function MyActivitiesPage({ teacher }: { teacher: typeof mockTeachers[0] }) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [teacherActivities, setTeacherActivities] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
-  // Filter activities from mockData + localStorage
-  const mockTeacherActivities = mockActivities.filter((a) => a.teacher === teacher.name);
-  const localActivities = JSON.parse(localStorage.getItem('activities') || '[]').filter((a: any) => a.teacher === teacher.name);
-  const teacherActivities = [...mockTeacherActivities, ...localActivities];
+  useEffect(() => {
+    api.getTeacherActivities()
+      .then((items: any[]) => setTeacherActivities(items.map((activity) => ({
+        ...activity,
+        teacher: activity.teacherName,
+        dueDate: activity.dueDate,
+        status: activity.submission?.status?.toLowerCase() ?? 'pending',
+        questions: (activity.questions ?? []).map((question: any) => ({
+          statement: question.prompt,
+          type: question.type.toLowerCase(),
+          points: Number(question.points),
+          options: [],
+        })),
+      }))))
+      .catch((requestError) => setError(requestError instanceof Error ? requestError.message : 'Erro ao carregar atividades'))
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) return <div className="py-16 text-center text-gray-400">Carregando atividades...</div>;
+  if (error) return <div className="py-16 text-center text-red-500">{error}</div>;
 
   if (teacherActivities.length === 0) {
     return (
@@ -225,13 +234,21 @@ function MyActivitiesPage({ teacher }: { teacher: typeof mockTeachers[0] }) {
 
 // ── Create Activity page ──────────────────────────────────────────────────────
 
-function CreateActivityPage({ teacher }: { teacher: typeof mockTeachers[0] }) {
-  const [selectedClass, setSelectedClass] = useState(teacher.classes[0]);
+function CreateActivityPage({ teacher }: { teacher: any }) {
+  const [selectedClass, setSelectedClass] = useState(teacher.classes?.[0] ?? '');
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [dueDate, setDueDate] = useState('');
   const [questions, setQuestions] = useState<DraftQuestion[]>([newQuestion('multiple_choice')]);
   const [saved, setSaved] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [saveError, setSaveError] = useState('');
+
+  const minDueDate = new Date();
+  minDueDate.setDate(minDueDate.getDate() + 1);
+  const maxDueDate = new Date();
+  maxDueDate.setFullYear(maxDueDate.getFullYear() + 1);
+  const formatDate = (value: Date) => value.toISOString().slice(0, 10);
 
   const addQuestion = (type: 'multiple_choice' | 'essay') => {
     setQuestions((prev) => [...prev, newQuestion(type)]);
@@ -273,27 +290,20 @@ function CreateActivityPage({ teacher }: { teacher: typeof mockTeachers[0] }) {
     );
   };
 
-  const handleSave = () => {
-    if (!title.trim() || !dueDate || questions.length === 0) return;
-    const newActivity = {
-      id: crypto.randomUUID(),
-      title: title.trim(),
-      subject: teacher.subject,
-      teacher: teacher.name,
-      description: description.trim(),
-      dueDate,
-      status: 'pending' as const,
-      questions: questions.map(q => {
-        if (q.type === 'multiple_choice') {
-          return { type: 'multiple_choice', id: q.id, statement: q.statement, options: q.options, correctAnswer: q.correctAnswer };
-        }
-        return { type: 'essay', id: q.id, statement: q.statement, placeholder: q.placeholder };
-      })
-    };
-    const activities = JSON.parse(localStorage.getItem('activities') || '[]');
-    activities.push(newActivity);
-    localStorage.setItem('activities', JSON.stringify(activities));
-    setSaved(true);
+  const handleSave = async () => {
+    if (submitting || !title.trim() || !dueDate || questions.length === 0) return;
+    const selected = new Date(`${dueDate}T23:59:59`);
+    const tomorrow = new Date(); tomorrow.setHours(23, 59, 59, 999); tomorrow.setDate(tomorrow.getDate() + 1);
+    const limit = new Date(); limit.setFullYear(limit.getFullYear() + 1);
+    if (selected < tomorrow || selected > limit) { setSaveError('Escolha uma data entre amanhã e um ano a partir de hoje.'); return; }
+    setSubmitting(true);
+    setSaveError('');
+    try {
+      await api.createActivity({ title: title.trim(), subject: teacher.subject, className: selectedClass, description: description.trim(), dueDate: selected.toISOString(), questions: questions.map((q) => ({ type: q.type === 'essay' ? 'ESSAY' : 'MULTIPLE_CHOICE', prompt: q.statement, points: q.points, correctAnswer: q.correctAnswer, options: JSON.stringify(q.options) })) });
+      setSaved(true);
+    } catch (error) {
+      setSaveError(error instanceof Error ? error.message : 'Não foi possível publicar a atividade.');
+    } finally { setSubmitting(false); }
   };
 
   const handleNew = () => {
@@ -360,6 +370,8 @@ function CreateActivityPage({ teacher }: { teacher: typeof mockTeachers[0] }) {
                 id="due"
                 type="date"
                 value={dueDate}
+                min={formatDate(minDueDate)}
+                max={formatDate(maxDueDate)}
                 onChange={(e) => setDueDate(e.target.value)}
               />
             </div>
@@ -367,20 +379,6 @@ function CreateActivityPage({ teacher }: { teacher: typeof mockTeachers[0] }) {
           <div className="space-y-1.5">
             <Label htmlFor="title">Título</Label>
             <div className="flex gap-2">
-              <Select value="" onValueChange={(v) => {
-                if (v) setTitle(v);
-              }}>
-                <SelectTrigger className="w-44">
-                  <SelectValue placeholder="Templates" />
-                </SelectTrigger>
-                <SelectContent>
-                  {ACTIVITY_TEMPLATES.map((tmpl) => (
-                    <SelectItem key={tmpl} value={tmpl}>
-                      {tmpl}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
               <Input
                 id="title"
                 placeholder="Ex: Prova Bimestral — Funções"
@@ -457,6 +455,12 @@ function CreateActivityPage({ teacher }: { teacher: typeof mockTeachers[0] }) {
                     rows={2}
                     className="resize-none text-sm"
                   />
+                </div>
+
+                <div className="space-y-1.5 max-w-32">
+                  <Label className="text-xs">Pontos da questão</Label>
+                  <Input type="number" min={0.1} step={0.1} value={q.points}
+                    onChange={(e) => updateQuestion(q.id, { points: Number(e.target.value) })} className="h-8 text-sm" />
                 </div>
 
                 {q.type === 'multiple_choice' && (
@@ -567,13 +571,14 @@ function CreateActivityPage({ teacher }: { teacher: typeof mockTeachers[0] }) {
 
       {/* Save */}
       <div className="sticky bottom-0 bg-white border-t py-4 flex items-center justify-between gap-4">
+        {saveError && <p className="text-sm text-red-600">{saveError}</p>}
         <p className="text-sm text-gray-500">{questions.length} questão(ões) criada(s)</p>
         <Button
           onClick={handleSave}
-          disabled={!title.trim() || !dueDate}
+          disabled={!title.trim() || !dueDate || submitting}
           className="bg-indigo-600 hover:bg-indigo-700"
         >
-          Publicar atividade
+          {submitting ? 'Publicando...' : 'Publicar atividade'}
         </Button>
       </div>
     </div>
@@ -582,18 +587,15 @@ function CreateActivityPage({ teacher }: { teacher: typeof mockTeachers[0] }) {
 
 // ── Grade Activities page ──────────────────────────────────────────────
 
-function GradeActivitiesPage({ teacher }: { teacher: typeof mockTeachers[0] }) {
-  const [selectedClass, setSelectedClass] = useState(teacher.classes[0]);
+function GradeActivitiesPage({ teacher }: { teacher: any }) {
+  const [selectedClass, setSelectedClass] = useState(teacher.classes?.[0] ?? '');
   const [openActivity, setOpenActivity] = useState<Activity | null>(null);
   const [grades, setGrades] = useState<Record<string, Record<string, string>>>({});
   const [saved, setSaved] = useState<Record<string, boolean>>({});
 
   // Filter activities for the teacher's subject that are submitted or graded
-  const classActivities = mockActivities.filter(
-    (a) => a.subject === teacher.subject && (a.status === 'submitted' || a.status === 'graded')
-  );
-
-  const studentsInClass = mockStudents.filter((s) => s.class === selectedClass);
+  const classActivities: any[] = [];
+  const studentsInClass: any[] = [];
 
   const setGrade = (activityId: string, studentId: string, value: string) => {
     setGrades((prev) => ({
@@ -783,12 +785,22 @@ function GradeActivitiesPage({ teacher }: { teacher: typeof mockTeachers[0] }) {
 export function TeacherDashboard({ user, onLogout }: TeacherDashboardProps) {
   const [page, setPage] = useState<Page>('dashboard');
   const [showChangePwd, setShowChangePwd] = useState(false);
-  const teacher = mockTeachers[0];
-  const studentsInClasses = mockStudents;
+  const [teacher, setTeacher] = useState<any>(null);
 
-  const toCorrectCount = mockActivities.filter(
-    (a) => a.subject === teacher.subject && a.status === 'submitted'
-  ).length;
+  useEffect(() => {
+    api.getTeacherProfile(Number(user.id)).then((profile: any) => setTeacher({
+      ...profile,
+      name: profile.user?.name ?? user.name,
+      email: profile.user?.email ?? user.email,
+      subject: profile.subject,
+      classes: profile.classes ?? [],
+    })).catch(() => setTeacher({ name: user.name, subject: '', classes: [] }));
+  }, [user.id, user.name, user.email]);
+
+  if (!teacher) return <div className="min-h-screen flex items-center justify-center text-gray-400">Carregando perfil...</div>;
+  const studentsInClasses: any[] = [];
+
+  const toCorrectCount = 0;
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">

@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS users (
     email VARCHAR(255) UNIQUE NOT NULL,
     password VARCHAR(255) NOT NULL,
     name VARCHAR(255) NOT NULL,
+    organization_key VARCHAR(255) NOT NULL DEFAULT 'UNASSIGNED',
     role ENUM('STUDENT', 'TEACHER', 'ADMIN', 'SUPER_ADMIN') NOT NULL,
     active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -115,8 +116,12 @@ CREATE TABLE IF NOT EXISTS activities (
 -- Registrations Table
 CREATE TABLE IF NOT EXISTS registrations (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
-    type ENUM('FISICA', 'JURIDICA') NOT NULL,
+    type ENUM('ADMIN') NOT NULL,
     data LONGTEXT,
+    email VARCHAR(255) NOT NULL DEFAULT '',
+    name VARCHAR(255) NOT NULL DEFAULT '',
+    password VARCHAR(255) NOT NULL DEFAULT '',
+    organization_key VARCHAR(255) NOT NULL DEFAULT 'UNASSIGNED',
     status ENUM('PENDING', 'APPROVED', 'REJECTED') NOT NULL,
     submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     reviewed_at TIMESTAMP NULL,
@@ -145,17 +150,5 @@ CREATE TABLE IF NOT EXISTS security_audits (
     FOREIGN KEY (email) REFERENCES users(email) ON DELETE CASCADE
 );
 
--- Insert Demo Users (com senhas BCrypt)
--- Password: aluno123 -> BCrypt com 12 rounds
--- Password: prof123 -> BCrypt com 12 rounds
--- Password: admin123 -> BCrypt com 12 rounds
--- Password: Super@Admin1 -> BCrypt com 12 rounds
-
-INSERT INTO users (email, password, name, role, active) VALUES
-('superadmin@escola.com', '$2a$12$R0h.uKvDNxQXvW/KI8eDl.m.HT6TYFbEGXTG1lDHGf5N6d5nJGqt2', 'Super Admin', 'SUPER_ADMIN', TRUE),
-('helena.costa@escola.com', '$2a$12$yDcXs/r8g4X6N1n5z8Y3H.K5lPq2M0o9B3c4D5e6F7g8H9i0J1k2', 'Diretora Helena Costa', 'ADMIN', TRUE),
-('maria.silva@escola.com', '$2a$12$5C9b8K2x3L1m4n5O6p7Q8r9S0t1U2v3W4x5Y6z7A8b9C0d1E2f3', 'Maria Silva', 'STUDENT', TRUE),
-('carlos.oliveira@escola.com', '$2a$12$7F8g9H0i1J2k3L4m5N6o7P8q9R0s1T2u3V4w5X6y7Z8a9B0c1D2e3', 'Prof. Carlos Oliveira', 'TEACHER', TRUE);
-
--- Para gerar as senhas BCrypt, use este comando Java:
--- String encoded = new BCryptPasswordEncoder(12).encode("sua_senha_aqui");
+-- Super Admins devem ser inseridos manualmente por um operador confiável.
+-- Nunca coloque senhas em texto puro; gere um hash BCrypt com 12 rounds.

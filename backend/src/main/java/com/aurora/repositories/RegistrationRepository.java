@@ -9,4 +9,5 @@ import java.util.List;
 public interface RegistrationRepository extends JpaRepository<Registration, Long> {
     List<Registration> findByStatus(Registration.Status status);
     List<Registration> findByType(Registration.RegistrationType type);
+    boolean existsByEmailAndStatus(String email, Registration.Status status);
 }
