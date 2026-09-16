@@ -14,6 +14,7 @@ import java.util.*;
 
 @Service
 @RequiredArgsConstructor
+@SuppressWarnings("null")
 public class ActivityService {
     private final ActivityRepository activityRepository;
     private final ActivityQuestionRepository questionRepository;

@@ -7,6 +7,7 @@ import { AdminDashboard } from './components/AdminDashboard';
 import { SuperAdminDashboard } from './components/SuperAdminDashboard';
 import { SupportChat } from './components/SupportChat';
 import { AuthenticatedUser, UserRole } from '../types';
+import { api } from '../services/api';
 
 type UserType = UserRole | null;
 type Screen = 'login' | 'register';
@@ -22,7 +23,7 @@ export default function App() {
   const [userType, setUserType] = useState<UserType>(null);
 
   useEffect(() => {
-    import('../services/api').then(({ api }) => api.getCurrentUser()).then((response) => {
+    api.getCurrentUser().then((response) => {
       const user: AuthenticatedUser = { id: response.userId, name: response.name, email: response.email, role: response.role };
       setUser(user);
       setUserType(response.role.toLowerCase() as UserRole);
@@ -63,7 +64,7 @@ export default function App() {
     setUser(null);
     setUserType(null);
     setScreen('login');
-    import('../services/api').then(({ api }) => api.logout()).catch(() => undefined);
+    api.logout().catch(() => undefined);
   };
 
   if (screen === 'register') {

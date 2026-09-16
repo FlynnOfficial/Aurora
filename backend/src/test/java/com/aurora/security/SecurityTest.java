@@ -1,6 +1,5 @@
 package com.aurora.security;
 
-import com.aurora.services.AuthService;
 import com.aurora.utils.InputSanitizer;
 import com.aurora.utils.RateLimitingUtil;
 import com.aurora.utils.JWTUtil;

@@ -20,6 +20,7 @@ import com.aurora.repositories.UserRepository;
 @RestController
 @RequestMapping("/admin")
 @RequiredArgsConstructor
+@SuppressWarnings("null")
 public class AdminController {
     private final AdminService adminService;
     private final UserRepository userRepository;

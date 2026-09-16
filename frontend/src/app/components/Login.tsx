@@ -5,6 +5,7 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { GraduationCap, Lock, Mail, UserPlus } from 'lucide-react';
 import { AuthenticatedUser, UserRole } from '../../types';
+import { api } from '../../services/api';
 
 interface LoginProps {
   onLogin: (user: AuthenticatedUser, userType: UserRole) => void;
@@ -20,7 +21,6 @@ export function Login({ onLogin, onRegister }: LoginProps) {
     e.preventDefault();
     setError('');
     try {
-      const { api } = await import('../../services/api');
       const response = await api.login(email, password);
 
       const user: AuthenticatedUser = {

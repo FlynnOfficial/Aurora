@@ -15,13 +15,14 @@ import java.util.List;
 
 @Service
 @RequiredArgsConstructor
+@SuppressWarnings("null")
 public class SupportService {
     private final SupportChatRepository chatRepository;
     private final UserRepository userRepository;
 
     @Transactional(readOnly = true)
     public List<SupportChat> list(Long userId, boolean superAdmin) throws Exception {
-        User user = user(userId);
+        user(userId);
         LocalDateTime since = LocalDateTime.now().minusDays(7);
         return superAdmin
             ? chatRepository.findByCreatedAtGreaterThanEqualOrderByCreatedAtDesc(since)

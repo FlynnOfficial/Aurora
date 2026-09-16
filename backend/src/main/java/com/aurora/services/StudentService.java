@@ -14,6 +14,7 @@ import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
+@SuppressWarnings("null")
 public class StudentService {
     private final StudentRepository studentRepository;
     private final UserRepository userRepository;

@@ -17,6 +17,7 @@ import java.util.List;
 
 @Service
 @RequiredArgsConstructor
+@SuppressWarnings("null")
 public class AdminService {
     private final RegistrationRepository registrationRepository;
     private final UserRepository userRepository;

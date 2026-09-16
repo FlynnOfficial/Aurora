@@ -13,6 +13,7 @@ import java.util.List;
 
 @Service
 @RequiredArgsConstructor
+@SuppressWarnings("null")
 public class GradeService {
     private final GradeRepository gradeRepository;
     private final StudentRepository studentRepository;

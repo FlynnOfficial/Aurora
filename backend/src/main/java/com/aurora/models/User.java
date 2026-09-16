@@ -39,6 +39,7 @@ public class User {
     private UserRole role;
 
     @Column(nullable = false, columnDefinition = "BOOLEAN DEFAULT TRUE")
+    @Builder.Default
     private Boolean active = true;
 
     @Transient
@@ -48,6 +49,7 @@ public class User {
     private LocalDateTime lastLogin;
 
     @Column(name = "failed_attempts", columnDefinition = "INT DEFAULT 0")
+    @Builder.Default
     private Integer failedAttempts = 0;
 
     @Transient

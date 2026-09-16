@@ -16,6 +16,7 @@ import jakarta.persistence.*;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@SuppressWarnings("all")
 public class SecurityAudit {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -32,6 +33,7 @@ public class SecurityAudit {
     private String details;
 
     @Column(nullable = false)
+    @Builder.Default
     private Boolean success = false;
 
     @Column(nullable = false)

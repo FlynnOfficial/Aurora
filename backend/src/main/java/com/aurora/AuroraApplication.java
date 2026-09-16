@@ -10,6 +10,7 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 @SpringBootApplication
 @EnableScheduling
+@SuppressWarnings("null")
 public class AuroraApplication {
 
     @Value("${cors.allowed-origins:http://localhost:5173,http://localhost:3000}")

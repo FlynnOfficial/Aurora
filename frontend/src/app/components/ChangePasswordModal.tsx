@@ -3,6 +3,7 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { CheckCircle, Eye, EyeOff, KeyRound, X } from 'lucide-react';
+import { api } from '../../services/api';
 
 type Step = 'fields' | 'done';
 
@@ -99,7 +100,6 @@ export function ChangePasswordModal({ onClose }: ChangePasswordModalProps) {
                 if (!validateFields()) return;
                 setSubmitting(true);
                 try {
-                  const { api } = await import('../../services/api');
                   await api.changePassword(current, next);
                   setStep('done');
                 } catch (error) {

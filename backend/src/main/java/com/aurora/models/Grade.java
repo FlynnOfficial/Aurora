@@ -31,6 +31,7 @@ public class Grade {
     private Double value;
 
     @Column(nullable = false)
+    @Builder.Default
     private Integer weight = 1;
 
     @Column(nullable = false)

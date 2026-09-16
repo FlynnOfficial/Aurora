@@ -15,6 +15,7 @@ import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
+@SuppressWarnings("null")
 public class TeacherService {
     private final TeacherRepository teacherRepository;
     private final UserRepository userRepository;

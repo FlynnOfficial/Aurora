@@ -19,6 +19,7 @@ import java.util.Optional;
 @Service
 @RequiredArgsConstructor
 @Slf4j
+@SuppressWarnings("null")
 public class AuthService {
     private final UserRepository userRepository;
     private final RegistrationRepository registrationRepository;

@@ -12,6 +12,7 @@ import jakarta.persistence.*;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@SuppressWarnings("all")
 public class Student {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -38,6 +39,7 @@ public class Student {
     private String address;
 
     @Column(nullable = false, columnDefinition = "BOOLEAN DEFAULT TRUE")
+    @Builder.Default
     private Boolean active = true;
 
     @Transient

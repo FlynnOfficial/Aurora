@@ -20,6 +20,7 @@ import java.util.Map;
 @RequestMapping("/auth")
 @RequiredArgsConstructor
 @Slf4j
+@SuppressWarnings("null")
 public class AuthController {
     private final AuthService authService;
 
