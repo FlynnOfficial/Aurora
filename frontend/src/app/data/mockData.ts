@@ -127,7 +127,6 @@ export const mockStudents: Student[] = [
     ],
   },
 ];
-
 export interface Admin {
   id: string;
   name: string;
@@ -516,13 +515,3 @@ export const mockActivities: Activity[] = [
     ],
   },
 ];
-
-export const chatbotResponses: Record<string, string> = {
-  notas: 'Você pode visualizar suas notas na aba "Minhas Notas" do painel. Lá você encontra todas as suas notas organizadas por disciplina e bimestre.',
-  horario: 'O horário das aulas está disponível no sistema. Entre em contato com a secretaria para mais informações sobre mudanças de horário.',
-  prova: 'As datas das provas são publicadas no calendário escolar. Fique atento aos comunicados dos professores!',
-  recuperacao: 'Para disciplinas com média abaixo de 7.0, você terá direito à recuperação ao final do ano letivo.',
-  media: 'A média mínima para aprovação é 7.0. A média final é calculada pela soma das notas dos 4 bimestres dividida por 4.',
-  ajuda: 'Estou aqui para ajudar! Posso responder sobre: notas, horários, provas, recuperação e média de aprovação.',
-  default: 'Desculpe, não entendi sua pergunta. Tente perguntar sobre: notas, horários, provas, recuperação ou média.',
-};

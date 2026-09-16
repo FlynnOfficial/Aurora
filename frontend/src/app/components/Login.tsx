@@ -46,7 +46,7 @@ export function Login({ onLogin, onRegister }: LoginProps) {
               <GraduationCap className="size-8 text-white" />
             </div>
           </div>
-          <CardTitle className="text-2xl">Sistema Escolar</CardTitle>
+          <CardTitle className="text-2xl">Aurora</CardTitle>
           <CardDescription>Acesse seu painel com suas credenciais</CardDescription>
         </CardHeader>
 

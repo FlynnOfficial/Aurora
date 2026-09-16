@@ -1,7 +1,7 @@
 
-  # Sistema escolar com login
+  # Aurora
 
-  This is a code bundle for Sistema escolar com login. The original project is available at https://www.figma.com/design/sKymBlW3ZJUGyhXIgRdjbY/Sistema-escolar-com-login.
+  Plataforma escolar Aurora com login seguro, dashboards por perfil e atendimento persistido ao suporte.
 
   ## Running the code
 

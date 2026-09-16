@@ -83,4 +83,16 @@ export const api = {
   getSubjects: () => request('/admin/subjects'),
   createSubject: (name: string) => request('/admin/subjects', { method: 'POST', body: JSON.stringify({ name }) }),
   deleteSubject: (id: number) => request(`/admin/subjects/${id}`, { method: 'DELETE' }),
+
+  // Support endpoints
+  getSupportChats: () => request('/support/chats'),
+  createSupportChat: (content: string) => request('/support/chats', {
+    method: 'POST',
+    body: JSON.stringify({ content }),
+  }),
+  sendSupportMessage: (chatId: number, content: string) => request(`/support/chats/${chatId}/messages`, {
+    method: 'POST',
+    body: JSON.stringify({ content }),
+  }),
+  closeSupportChat: (chatId: number) => request(`/support/chats/${chatId}/close`, { method: 'PUT' }),
 };

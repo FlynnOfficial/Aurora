@@ -23,6 +23,29 @@ CREATE TABLE IF NOT EXISTS users (
     CONSTRAINT chk_name_length CHECK (LENGTH(name) <= 255)
 );
 
+CREATE TABLE IF NOT EXISTS support_chats (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    requester_id BIGINT NOT NULL,
+    organization_key VARCHAR(255) NOT NULL,
+    status ENUM('OPEN', 'CLOSED') NOT NULL DEFAULT 'OPEN',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    closed_at TIMESTAMP NULL,
+    FOREIGN KEY (requester_id) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_support_requester (requester_id, created_at),
+    INDEX idx_support_history (created_at, status)
+);
+
+CREATE TABLE IF NOT EXISTS support_messages (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    chat_id BIGINT NOT NULL,
+    sender_id BIGINT NOT NULL,
+    content TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (chat_id) REFERENCES support_chats(id) ON DELETE CASCADE,
+    FOREIGN KEY (sender_id) REFERENCES users(id),
+    INDEX idx_support_messages_chat (chat_id, created_at)
+);
+
 -- Students Table
 CREATE TABLE IF NOT EXISTS students (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,

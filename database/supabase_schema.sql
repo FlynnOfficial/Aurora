@@ -27,6 +27,27 @@ create table if not exists users (
 create index if not exists idx_users_organization on users (organization_key);
 create index if not exists idx_users_role on users (role);
 
+create table if not exists support_chats (
+    id bigserial primary key,
+    requester_id bigint not null references users(id) on delete cascade,
+    organization_key text not null,
+    status text not null default 'OPEN' check (status in ('OPEN', 'CLOSED')),
+    created_at timestamptz not null default now(),
+    closed_at timestamptz
+);
+
+create table if not exists support_messages (
+    id bigserial primary key,
+    chat_id bigint not null references support_chats(id) on delete cascade,
+    sender_id bigint not null references users(id) on delete restrict,
+    content text not null,
+    created_at timestamptz not null default now()
+);
+
+create index if not exists idx_support_chats_requester on support_chats (requester_id, created_at desc);
+create index if not exists idx_support_chats_history on support_chats (created_at desc, status);
+create index if not exists idx_support_messages_chat on support_messages (chat_id, created_at);
+
 create table if not exists registrations (
     id bigserial primary key,
     type text not null default 'ADMIN' check (type = 'ADMIN'),

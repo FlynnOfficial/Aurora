@@ -5,7 +5,7 @@ import { StudentDashboard } from './components/StudentDashboard';
 import { TeacherDashboard } from './components/TeacherDashboard';
 import { AdminDashboard } from './components/AdminDashboard';
 import { SuperAdminDashboard } from './components/SuperAdminDashboard';
-import { Chatbot } from './components/Chatbot';
+import { SupportChat } from './components/SupportChat';
 
 interface User {
   name: string;
@@ -64,7 +64,7 @@ export default function App() {
       {userType === 'teacher' && <TeacherDashboard user={user} onLogout={handleLogout} />}
       {userType === 'admin' && <AdminDashboard user={user} onLogout={handleLogout} />}
       {userType === 'super_admin' && <SuperAdminDashboard user={user} onLogout={handleLogout} />}
-      {userType !== 'super_admin' && <Chatbot />}
+      {userType !== 'super_admin' && userType && <SupportChat user={user} userType={userType} />}
     </>
   );
 }

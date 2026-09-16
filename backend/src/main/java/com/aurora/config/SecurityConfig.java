@@ -60,6 +60,7 @@ public class SecurityConfig {
                 .requestMatchers("/activities/*/submit", "/activities/student/**").hasRole("STUDENT")
                 .requestMatchers("/admin/registrations/**").hasRole("SUPER_ADMIN")
                 .requestMatchers("/admin/**").hasAnyRole("ADMIN", "SUPER_ADMIN")
+                .requestMatchers("/support/**").hasAnyRole("STUDENT", "TEACHER", "ADMIN", "SUPER_ADMIN")
                 .requestMatchers("/grades/**").hasAnyRole("STUDENT", "TEACHER", "ADMIN", "SUPER_ADMIN")
                 .anyRequest().authenticated()
             );

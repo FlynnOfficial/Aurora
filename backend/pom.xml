@@ -11,7 +11,7 @@
     <packaging>jar</packaging>
 
     <name>Aurora Backend</name>
-    <description>Sistema Escolar - Backend em Java 21</description>
+    <description>Aurora - Backend em Java 21</description>
 
     <parent>
         <groupId>org.springframework.boot</groupId>

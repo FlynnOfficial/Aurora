@@ -11,7 +11,7 @@
   <artifactId>aurora-backend</artifactId>
   <name>Aurora Backend</name>
   <version>1.0.0</version>
-  <description>Sistema Escolar - Backend em Java 21</description>
+  <description>Aurora - Backend em Java 21</description>
   <build>
     <plugins>
       <plugin>
