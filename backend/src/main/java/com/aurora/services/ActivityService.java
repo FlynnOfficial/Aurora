@@ -93,10 +93,10 @@ public class ActivityService {
 
             @Transactional(readOnly = true)
             public Map<String, Object> teacherOverview(Long userId) throws Exception {
-            Teacher teacher = teacherRepository.findByUser(userRepository.findById(userId)
+                Teacher teacher = teacherRepository.findByUser(userRepository.findById(userId)
                 .orElseThrow(() -> new Exception("Usuario nao encontrado")))
                 .orElseThrow(() -> new Exception("Professor nao encontrado"));
-            List<Map<String, Object>> students = studentRepository.findByOrganizationKeyAndClassNameInAndActiveTrue(
+                List<Map<String, Object>> students = studentRepository.findByOrganizationKeyAndClassNameInAndActiveTrue(
                 teacher.getOrganizationKey(), teacher.getClasses() == null ? Set.of() : teacher.getClasses()).stream()
                 .map(student -> {
                     Map<String, Object> value = new LinkedHashMap<>();
@@ -104,25 +104,33 @@ public class ActivityService {
                     value.put("enrollment", student.getEnrollment()); value.put("className", student.getClassName());
                     return value;
                 }).toList();
-            List<Map<String, Object>> activities = activityRepository.findByTeacherOrderByCreatedAtDesc(teacher).stream()
+        List<Activity> teacherActivities = activityRepository.findByTeacherOrderByCreatedAtDesc(teacher);
+        Map<Long, List<Submission>> submissionsByActivity = submissionRepository
+                .findByActivityInOrderBySubmittedAtAsc(teacherActivities).stream()
+                .collect(java.util.stream.Collectors.groupingBy(submission -> submission.getActivity().getId()));
+        List<Map<String, Object>> activities = teacherActivities.stream()
                 .map(activity -> {
                     Map<String, Object> value = activityView(activity, null, true);
-                    value.put("submissions", submissionRepository.findByActivityOrderBySubmittedAtAsc(activity).stream()
+                    value.put("submissions", submissionsByActivity.getOrDefault(activity.getId(), List.of()).stream()
                         .map(submission -> submissionView(submission, true)).toList());
                     return value;
                 }).toList();
-            return Map.of("teacher", teacher, "students", students, "activities", activities);
-            }
+        return Map.of("teacher", teacher, "students", students, "activities", activities);
+    }
 
     @Transactional(readOnly = true)
     public List<Map<String, Object>> studentActivities(Long userId) throws Exception {
         Student student = studentRepository.findByUser(userRepository.findById(userId)
                 .orElseThrow(() -> new Exception("Usuario nao encontrado")))
                 .orElseThrow(() -> new Exception("Aluno nao encontrado"));
-        return activityRepository.findByOrganizationKeyOrderByCreatedAtDesc(student.getUser().getOrganizationKey()).stream()
+        List<Activity> activities = activityRepository.findByOrganizationKeyOrderByCreatedAtDesc(student.getUser().getOrganizationKey()).stream()
                 .filter(activity -> activity.getClassName().equals(student.getClassName()))
+            .toList();
+        Map<Long, Submission> submissionsByActivity = submissionRepository.findByStudentAndActivityIn(student, activities).stream()
+            .collect(java.util.stream.Collectors.toMap(submission -> submission.getActivity().getId(), submission -> submission));
+        return activities.stream()
                 .map(activity -> {
-                    Submission submission = submissionRepository.findByActivityAndStudent(activity, student).orElse(null);
+                Submission submission = submissionsByActivity.get(activity.getId());
                     return studentActivityView(activity, submission);
                 }).toList();
     }

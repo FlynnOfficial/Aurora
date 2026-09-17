@@ -1,20 +1,20 @@
-import { useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { Login } from './components/Login';
-import { Register } from './components/Register';
-import { StudentDashboard } from './components/StudentDashboard';
-import { TeacherDashboard } from './components/TeacherDashboard';
-import { AdminDashboard } from './components/AdminDashboard';
-import { SuperAdminDashboard } from './components/SuperAdminDashboard';
-import { SupportChat } from './components/SupportChat';
 import { AuthenticatedUser, UserRole } from '../types';
 import { api } from '../services/api';
+
+const Register = lazy(() => import('./components/Register').then(({ Register }) => ({ default: Register })));
+const StudentDashboard = lazy(() => import('./components/StudentDashboard').then(({ StudentDashboard }) => ({ default: StudentDashboard })));
+const TeacherDashboard = lazy(() => import('./components/TeacherDashboard').then(({ TeacherDashboard }) => ({ default: TeacherDashboard })));
+const AdminDashboard = lazy(() => import('./components/AdminDashboard').then(({ AdminDashboard }) => ({ default: AdminDashboard })));
+const SuperAdminDashboard = lazy(() => import('./components/SuperAdminDashboard').then(({ SuperAdminDashboard }) => ({ default: SuperAdminDashboard })));
+const SupportChat = lazy(() => import('./components/SupportChat').then(({ SupportChat }) => ({ default: SupportChat })));
 
 type UserType = UserRole | null;
 type Screen = 'login' | 'register';
 
-interface StoredSession {
-  user: AuthenticatedUser;
-  userType: UserRole;
+function LoadingScreen() {
+  return <div className="min-h-[100dvh] flex items-center justify-center bg-slate-50 text-sm text-slate-500">Carregando...</div>;
 }
 
 export default function App() {
@@ -68,7 +68,7 @@ export default function App() {
   };
 
   if (screen === 'register') {
-    return <Register onBack={() => setScreen('login')} />;
+    return <Suspense fallback={<LoadingScreen />}><Register onBack={() => setScreen('login')} /></Suspense>;
   }
 
   if (!user || !userType) {
@@ -76,12 +76,14 @@ export default function App() {
   }
 
   return (
-    <>
+    <Suspense fallback={<LoadingScreen />}>
+      <>
       {userType === 'student' && <StudentDashboard user={user} onLogout={handleLogout} />}
       {userType === 'teacher' && <TeacherDashboard user={user} onLogout={handleLogout} />}
       {userType === 'admin' && <AdminDashboard user={user} onLogout={handleLogout} />}
       {userType === 'super_admin' && <SuperAdminDashboard user={user} onLogout={handleLogout} />}
       {userType !== 'super_admin' && userType && <SupportChat user={user} userType={userType} />}
-    </>
+      </>
+    </Suspense>
   );
 }

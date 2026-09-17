@@ -11,5 +11,7 @@ import java.util.Optional;
 public interface SubmissionRepository extends JpaRepository<Submission, Long> {
     Optional<Submission> findByActivityAndStudent(Activity activity, Student student);
     List<Submission> findByActivityOrderBySubmittedAtAsc(Activity activity);
+    List<Submission> findByActivityInOrderBySubmittedAtAsc(List<Activity> activities);
+    List<Submission> findByStudentAndActivityIn(Student student, List<Activity> activities);
     List<Submission> findByStudentOrderBySubmittedAtDesc(Student student);
 }
