@@ -42,6 +42,10 @@ function generatePassword() {
   return base.sort(() => Math.random() - 0.5).join('');
 }
 
+function getErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : 'Nao foi possivel concluir o cadastro.';
+}
+
 function MultiSelect({
   label, options, selected, onChange,
 }: { label: string; options: string[]; selected: string[]; onChange: (v: string[]) => void }) {
@@ -109,16 +113,17 @@ interface NewTeacher {
 
 function AddTeacherPanel({
   availableSubjects, availableClasses, onAdd, onClose,
-}: { availableSubjects: string[]; availableClasses: string[]; onAdd: (t: NewTeacher) => void; onClose: () => void }) {
+}: { availableSubjects: string[]; availableClasses: string[]; onAdd: (t: NewTeacher) => Promise<void>; onClose: () => void }) {
   const [fields, setFields] = useState({ registro: '', name: '', email: '' });
   const [subjects, setSubjects] = useState<string[]>([]);
   const [classes, setClasses] = useState<string[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [created, setCreated] = useState<NewTeacher | null>(null);
+  const [saving, setSaving] = useState(false);
 
   const set = (k: string, v: string) => { setFields((p) => ({ ...p, [k]: v })); setErrors((p) => ({ ...p, [k]: '' })); };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     const errs: Record<string, string> = {};
     if (!fields.registro.trim()) errs.registro = 'Obrigatorio';
     if (!fields.name.trim()) errs.name = 'Obrigatorio';
@@ -127,8 +132,15 @@ function AddTeacherPanel({
     if (classes.length === 0) errs.classes = 'Selecione ao menos uma turma';
     if (Object.keys(errs).length > 0) { setErrors(errs); return; }
     const t: NewTeacher = { id: crypto.randomUUID(), ...fields, subjects, classes, password: generatePassword() };
-    setCreated(t);
-    onAdd(t);
+    setSaving(true);
+    try {
+      await onAdd(t);
+      setCreated(t);
+    } catch (error) {
+      setErrors((previous) => ({ ...previous, submit: getErrorMessage(error) }));
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -172,8 +184,9 @@ function AddTeacherPanel({
                 selected={classes} onChange={setClasses} />
               {errors.classes && <p className="text-xs text-red-500">{errors.classes}</p>}
             </div>
-            <Button className="w-full bg-purple-600 hover:bg-purple-700" onClick={handleSave}>
-              Criar Professor
+            {errors.submit && <p className="text-sm text-red-600">{errors.submit}</p>}
+            <Button className="w-full bg-purple-600 hover:bg-purple-700" onClick={handleSave} disabled={saving}>
+              {saving ? 'Salvando...' : 'Criar Professor'}
             </Button>
           </>
         ) : (
@@ -201,14 +214,15 @@ interface NewStudent {
   id: string; ra: string; name: string; email: string; turma: string; password: string;
 }
 
-function AddStudentPanel({ availableClasses, onAdd, onClose }: { availableClasses: string[]; onAdd: (s: NewStudent) => void; onClose: () => void }) {
+function AddStudentPanel({ availableClasses, onAdd, onClose }: { availableClasses: string[]; onAdd: (s: NewStudent) => Promise<void>; onClose: () => void }) {
   const [fields, setFields] = useState({ ra: '', name: '', email: '', turma: '' });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [created, setCreated] = useState<NewStudent | null>(null);
+  const [saving, setSaving] = useState(false);
 
   const set = (k: string, v: string) => { setFields((p) => ({ ...p, [k]: v })); setErrors((p) => ({ ...p, [k]: '' })); };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     const errs: Record<string, string> = {};
     if (!fields.ra.trim()) errs.ra = 'Obrigatorio';
     if (!fields.name.trim()) errs.name = 'Obrigatorio';
@@ -216,8 +230,15 @@ function AddStudentPanel({ availableClasses, onAdd, onClose }: { availableClasse
     if (!fields.turma) errs.turma = 'Selecione uma turma';
     if (Object.keys(errs).length > 0) { setErrors(errs); return; }
     const s: NewStudent = { id: crypto.randomUUID(), ...fields, password: generatePassword() };
-    setCreated(s);
-    onAdd(s);
+    setSaving(true);
+    try {
+      await onAdd(s);
+      setCreated(s);
+    } catch (error) {
+      setErrors((previous) => ({ ...previous, submit: getErrorMessage(error) }));
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -258,8 +279,9 @@ function AddStudentPanel({ availableClasses, onAdd, onClose }: { availableClasse
               </select>
               {errors.turma && <p className="text-xs text-red-500">{errors.turma}</p>}
             </div>
-            <Button className="w-full bg-purple-600 hover:bg-purple-700" onClick={handleSave}>
-              Criar Aluno
+            {errors.submit && <p className="text-sm text-red-600">{errors.submit}</p>}
+            <Button className="w-full bg-purple-600 hover:bg-purple-700" onClick={handleSave} disabled={saving}>
+              {saving ? 'Salvando...' : 'Criar Aluno'}
             </Button>
           </>
         ) : (
@@ -284,22 +306,30 @@ function AddStudentPanel({ availableClasses, onAdd, onClose }: { availableClasse
 
 interface NewAdmin { id: string; name: string; email: string; role: string; password: string; }
 
-function AddAdminPanel({ onAdd, onClose }: { onAdd: (a: NewAdmin) => void; onClose: () => void }) {
+function AddAdminPanel({ onAdd, onClose }: { onAdd: (a: NewAdmin) => Promise<void>; onClose: () => void }) {
   const [fields, setFields] = useState({ name: '', email: '', role: '' });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [created, setCreated] = useState<NewAdmin | null>(null);
+  const [saving, setSaving] = useState(false);
 
   const set = (k: string, v: string) => { setFields((p) => ({ ...p, [k]: v })); setErrors((p) => ({ ...p, [k]: '' })); };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     const errs: Record<string, string> = {};
     if (!fields.name.trim()) errs.name = 'Obrigatorio';
     if (!fields.email.includes('@')) errs.email = 'E-mail invalido';
     if (!fields.role.trim()) errs.role = 'Obrigatorio';
     if (Object.keys(errs).length > 0) { setErrors(errs); return; }
     const a: NewAdmin = { id: crypto.randomUUID(), ...fields, password: generatePassword() };
-    setCreated(a);
-    onAdd(a);
+    setSaving(true);
+    try {
+      await onAdd(a);
+      setCreated(a);
+    } catch (error) {
+      setErrors((previous) => ({ ...previous, submit: getErrorMessage(error) }));
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -331,8 +361,9 @@ function AddAdminPanel({ onAdd, onClose }: { onAdd: (a: NewAdmin) => void; onClo
                 onChange={(e) => set('role', e.target.value)} className={errors.role ? 'border-red-400' : ''} />
               {errors.role && <p className="text-xs text-red-500">{errors.role}</p>}
             </div>
-            <Button className="w-full bg-purple-600 hover:bg-purple-700" onClick={handleSave}>
-              Criar Administrador
+            {errors.submit && <p className="text-sm text-red-600">{errors.submit}</p>}
+            <Button className="w-full bg-purple-600 hover:bg-purple-700" onClick={handleSave} disabled={saving}>
+              {saving ? 'Salvando...' : 'Criar Administrador'}
             </Button>
           </>
         ) : (
@@ -383,13 +414,19 @@ export function AdminDashboard({ user, onLogout }: AdminDashboardProps) {
     setClasses(loadedClasses);
   };
 
-  useEffect(() => { loadAdminData().catch(() => {}); }, []);
+  useEffect(() => { loadAdminData().catch((error) => setUserError(getErrorMessage(error))); }, []);
 
-  const allGrades: any[] = [];
-  const approvedCount = allGrades.filter((g) => g.status === 'approved').length;
-  const recoveringCount = allGrades.filter((g) => g.status === 'recovering').length;
-  const failedCount = allGrades.filter((g) => g.status === 'failed').length;
-  const overallAverage = allGrades.reduce((s, g) => s + g.average, 0) / (allGrades.length || 1);
+  const gradeTotals = students.reduce((totals, student) => ({
+    count: totals.count + (student.gradeCount || 0),
+    weightedAverage: totals.weightedAverage + (student.average ?? 0) * (student.gradeCount || 0),
+    approved: totals.approved + (student.approvedCount || 0),
+    recovering: totals.recovering + (student.recoveringCount || 0),
+    failed: totals.failed + (student.failedCount || 0),
+  }), { count: 0, weightedAverage: 0, approved: 0, recovering: 0, failed: 0 });
+  const approvedCount = gradeTotals.approved;
+  const recoveringCount = gradeTotals.recovering;
+  const failedCount = gradeTotals.failed;
+  const overallAverage = gradeTotals.count ? gradeTotals.weightedAverage / gradeTotals.count : null;
 
   const addSubject = () => {
     const trimmed = newSubject.trim();
@@ -406,7 +443,11 @@ export function AdminDashboard({ user, onLogout }: AdminDashboardProps) {
 
   const addClass = () => {
     if (!newClass.trim()) { setClassError('Digite o nome da turma.'); return; }
-    api.createClass(newClass, new Date().getFullYear()).then((value: any) => { setClasses((p) => [...p, value]); setNewClass(''); setClassError(''); }).catch((e) => setClassError(e.message));
+    api.createClass(newClass, new Date().getFullYear()).then((value: any) => {
+      setClasses((previous) => previous.some((schoolClass) => schoolClass.id === value.id) ? previous : [...previous, value]);
+      setNewClass('');
+      setClassError('');
+    }).catch((error) => setClassError(getErrorMessage(error)));
   };
 
   const removeClass = (id: number) => api.deleteClass(id).then(() => setClasses((p) => p.filter((value) => value.id !== id))).catch(() => {});
@@ -417,19 +458,28 @@ export function AdminDashboard({ user, onLogout }: AdminDashboardProps) {
       {showChangePwd && <ChangePasswordModal onClose={() => setShowChangePwd(false)} />}
       {modal?.type === 'add_teacher' && (
         <AddTeacherPanel availableSubjects={subjects.map((subject) => subject.name)} availableClasses={classes.map((schoolClass) => schoolClass.name)}
-          onAdd={(t) => { api.createAdminUser({ name: t.name, email: t.email, password: t.password, role: 'TEACHER', subject: t.subjects[0], subjects: t.subjects, classes: t.classes }).then((nt: any) => setTeachers((p) => [...p, nt])).catch((e) => setUserError(e.message)); }}
+          onAdd={async (t) => {
+            const created: any = await api.createAdminUser({ name: t.name, email: t.email, password: t.password, role: 'TEACHER', subject: t.subjects[0], subjects: t.subjects, classes: t.classes });
+            setTeachers((previous) => [...previous, created]);
+          }}
           onClose={() => setModal(null)}
         />
       )}
       {modal?.type === 'add_student' && (
         <AddStudentPanel availableClasses={classes.map((schoolClass) => schoolClass.name)}
-          onAdd={(s) => { api.createAdminUser({ name: s.name, email: s.email, password: s.password, role: 'STUDENT', className: s.turma, enrollment: s.ra }).then((ns: any) => setStudents((p) => [...p, ns])).catch((e) => setUserError(e.message)); }}
+          onAdd={async (s) => {
+            const created: any = await api.createAdminUser({ name: s.name, email: s.email, password: s.password, role: 'STUDENT', className: s.turma, enrollment: s.ra });
+            setStudents((previous) => [...previous, created]);
+          }}
           onClose={() => setModal(null)}
         />
       )}
       {modal?.type === 'add_admin' && (
         <AddAdminPanel
-          onAdd={(a) => { api.createAdminUser({ name: a.name, email: a.email, password: a.password, role: 'ADMIN' }).then((na: any) => setAdmins((p) => [...p, na])).catch((e) => setUserError(e.message)); }}
+          onAdd={async (a) => {
+            const created: any = await api.createAdminUser({ name: a.name, email: a.email, password: a.password, role: 'ADMIN' });
+            setAdmins((previous) => [...previous, created]);
+          }}
           onClose={() => setModal(null)}
         />
       )}
@@ -494,7 +544,7 @@ export function AdminDashboard({ user, onLogout }: AdminDashboardProps) {
               <TrendingUp className="size-4 text-purple-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl">{overallAverage.toFixed(1)}</div>
+              <div className="text-2xl">{overallAverage === null ? '—' : overallAverage.toFixed(1)}</div>
               <p className="text-xs text-gray-500">Todos os alunos</p>
             </CardContent>
           </Card>
@@ -603,9 +653,7 @@ export function AdminDashboard({ user, onLogout }: AdminDashboardProps) {
                   </TableHeader>
                   <TableBody>
                     {students.map((student) => {
-                      const avg = null;
-                      const hasRecovery = false;
-                      const hasFailed = false;
+                      const avg = student.average ?? null;
                       return (
                         <TableRow key={student.id}>
                           <TableCell>
@@ -624,10 +672,10 @@ export function AdminDashboard({ user, onLogout }: AdminDashboardProps) {
                             ) : <span className="text-gray-400">—</span>}
                           </TableCell>
                           <TableCell>
-                            {avg === null ? <Badge variant="outline">Novo</Badge>
-                              : hasFailed ? <Badge className="bg-red-500">Reprovado</Badge>
-                              : hasRecovery ? <Badge className="bg-yellow-500">Recuperacao</Badge>
-                              : <Badge className="bg-green-500">Regular</Badge>}
+                            {student.status === 'FAILED' ? <Badge className="bg-red-500">Reprovado</Badge>
+                              : student.status === 'RECOVERING' ? <Badge className="bg-yellow-500">Recuperacao</Badge>
+                              : student.status === 'REGULAR' ? <Badge className="bg-green-500">Regular</Badge>
+                              : <Badge variant="outline">Novo</Badge>}
                           </TableCell>
                               <TableCell><Button variant="ghost" size="sm" onClick={() => removeUser(student.id)}><Trash2 className="size-4 text-red-500" /></Button></TableCell>
                         </TableRow>
@@ -674,7 +722,9 @@ export function AdminDashboard({ user, onLogout }: AdminDashboardProps) {
                           </div>
                         </TableCell>
                         <TableCell className="text-gray-500 text-sm">{teacher.email}</TableCell>
-                        <TableCell>{teacher.assignedSubject || 'Sem disciplina'}</TableCell>
+                        <TableCell>
+                          {(teacher.assignedSubjects?.length ? teacher.assignedSubjects : teacher.assignedSubject ? [teacher.assignedSubject] : []).join(', ') || 'Sem disciplina'}
+                        </TableCell>
                         <TableCell>
                           <div className="flex flex-wrap gap-1">
                             {(teacher.assignedClasses || []).map((cls: string) => (
@@ -782,7 +832,7 @@ export function AdminDashboard({ user, onLogout }: AdminDashboardProps) {
                     {subjects.map((s) => {
                       const isDefault = false;
                       return (
-                        <div key={s} className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-sm border ${isDefault ? 'bg-gray-50 text-gray-700 border-gray-200' : 'bg-purple-50 text-purple-700 border-purple-200'}`}>
+                        <div key={s.id} className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-sm border ${isDefault ? 'bg-gray-50 text-gray-700 border-gray-200' : 'bg-purple-50 text-purple-700 border-purple-200'}`}>
                           {!isDefault && <FlaskConical className="size-3 text-purple-500" />}
                           {s.name}
                           {!isDefault && (

@@ -1,6 +1,7 @@
 package com.aurora.controllers;
 
 import com.aurora.models.Registration;
+import com.aurora.models.AdminUserSummary;
 import com.aurora.services.AdminService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -71,7 +72,7 @@ public class AdminController {
         try {
             Object userId = request.getAttribute("userId");
             if (!(userId instanceof Long)) throw new Exception("Sessao invalida");
-            List<com.aurora.models.User> users = adminService.getUsersFor((Long) userId);
+            List<AdminUserSummary> users = adminService.getUsersFor((Long) userId);
             return ResponseEntity.ok(users);
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(createError(e.getMessage()));
@@ -104,7 +105,17 @@ public class AdminController {
 
     @PostMapping("/classes")
     public ResponseEntity<?> createClass(@RequestBody ClassRequest input, HttpServletRequest request) {
-        try { SchoolClass value = new SchoolClass(); value.setName(input.name.trim()); value.setSchoolYear(input.schoolYear); value.setOrganizationKey(organization(request)); return ResponseEntity.ok(schoolClassRepository.save(value)); }
+        try {
+            String name = input.name.trim();
+            String organizationKey = organization(request);
+            SchoolClass value = schoolClassRepository.findByOrganizationKeyAndNameAndSchoolYear(organizationKey, name, input.schoolYear)
+                    .orElseGet(SchoolClass::new);
+            value.setName(name);
+            value.setSchoolYear(input.schoolYear);
+            value.setOrganizationKey(organizationKey);
+            value.setActive(true);
+            return ResponseEntity.ok(schoolClassRepository.save(value));
+        }
         catch (Exception e) { return ResponseEntity.badRequest().body(createError(e.getMessage())); }
     }
 
@@ -122,7 +133,16 @@ public class AdminController {
 
     @PostMapping("/subjects")
     public ResponseEntity<?> createSubject(@RequestBody SubjectRequest input, HttpServletRequest request) {
-        try { Subject value = new Subject(); value.setName(input.name.trim()); value.setOrganizationKey(organization(request)); return ResponseEntity.ok(subjectRepository.save(value)); }
+        try {
+            String name = input.name.trim();
+            String organizationKey = organization(request);
+            Subject value = subjectRepository.findByOrganizationKeyAndName(organizationKey, name)
+                    .orElseGet(Subject::new);
+            value.setName(name);
+            value.setOrganizationKey(organizationKey);
+            value.setActive(true);
+            return ResponseEntity.ok(subjectRepository.save(value));
+        }
         catch (Exception e) { return ResponseEntity.badRequest().body(createError(e.getMessage())); }
     }
 

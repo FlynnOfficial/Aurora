@@ -130,7 +130,7 @@ public class AuthService {
                 throw new Exception("Senha não atende aos requisitos de segurança");
             }
 
-            if (userRepository.findByEmail(email).isPresent()) {
+            if (userRepository.findByEmailIgnoreCase(email).isPresent()) {
                 auditService.logSecurityEvent(email, "DUPLICATE_REGISTRATION", "Tentativa de registrar email já existente", ipAddress);
                 throw new Exception("Email já cadastrado");
             }

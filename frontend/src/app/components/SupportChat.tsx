@@ -29,6 +29,24 @@ interface SupportChatProps {
 
 const formatTime = (value: string) => new Date(value).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
 
+function mergeChat(current: SupportChatRecord | undefined, incoming: SupportChatRecord): SupportChatRecord {
+  if (!current) return incoming;
+  const messages = new Map(current.messages.map((message) => [message.id, message]));
+  incoming.messages.forEach((message) => messages.set(message.id, message));
+  return {
+    ...current,
+    ...incoming,
+    status: current.status === 'CLOSED' ? 'CLOSED' : incoming.status,
+    closedAt: incoming.closedAt ?? current.closedAt,
+    messages: [...messages.values()].sort((left, right) =>
+      left.createdAt.localeCompare(right.createdAt) || left.id - right.id),
+  };
+}
+
+function mergeChats(current: SupportChatRecord[], incoming: SupportChatRecord[]): SupportChatRecord[] {
+  return incoming.map((chat) => mergeChat(current.find((existing) => existing.id === chat.id), chat));
+}
+
 export function SupportChat({ user, userType }: SupportChatProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [chats, setChats] = useState<SupportChatRecord[]>([]);
@@ -36,19 +54,35 @@ export function SupportChat({ user, userType }: SupportChatProps) {
   const [input, setInput] = useState('');
   const [error, setError] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const refreshInProgress = useRef(false);
   const isSuperAdmin = userType === 'super_admin';
   const selectedChat = chats.find((chat) => chat.id === selectedId);
 
-  const loadChats = async () => {
-    try {
-      setChats(await api.getSupportChats() as SupportChatRecord[]);
-      setError('');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Não foi possível carregar os atendimentos');
-    }
-  };
-
-  useEffect(() => { if (isOpen) void loadChats(); }, [isOpen]);
+  useEffect(() => {
+    if (!isOpen) return;
+    let active = true;
+    const refresh = async () => {
+      if (refreshInProgress.current) return;
+      refreshInProgress.current = true;
+      try {
+        const loaded = await api.getSupportChats() as SupportChatRecord[];
+        if (active) {
+          setChats((current) => mergeChats(current, loaded));
+          setError('');
+        }
+      } catch (err) {
+        if (active) setError(err instanceof Error ? err.message : 'Não foi possível carregar os atendimentos');
+      } finally {
+        refreshInProgress.current = false;
+      }
+    };
+    void refresh();
+    const interval = window.setInterval(() => void refresh(), 3000);
+    return () => {
+      active = false;
+      window.clearInterval(interval);
+    };
+  }, [isOpen]);
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [selectedChat?.messages.length]);
 
   const send = async () => {
@@ -58,8 +92,10 @@ export function SupportChat({ user, userType }: SupportChatProps) {
         ? await api.sendSupportMessage(selectedChat.id, input.trim())
         : await api.createSupportChat(input.trim());
       setChats((current) => {
-        const next = current.filter((item) => item.id !== (chat as SupportChatRecord).id);
-        return [chat as SupportChatRecord, ...next];
+        const updated = chat as SupportChatRecord;
+        const previous = current.find((item) => item.id === updated.id);
+        const next = current.filter((item) => item.id !== updated.id);
+        return [mergeChat(previous, updated), ...next];
       });
       setSelectedId((chat as SupportChatRecord).id);
       setInput('');
@@ -92,7 +128,7 @@ export function SupportChat({ user, userType }: SupportChatProps) {
               <CardTitle className="text-lg flex items-center gap-2"><LifeBuoy className="size-5" />Suporte Aurora</CardTitle>
               <Button variant="ghost" size="sm" onClick={() => setIsOpen(false)} className="text-white hover:bg-blue-700 min-h-10 min-w-10 p-0"><X className="size-4" /></Button>
             </div>
-            <p className="text-xs text-blue-100">Fale com a equipe de suporte. O histórico encerrado fica disponível por 7 dias.</p>
+            <p className="text-xs text-blue-100">Fale com a equipe de suporte. Mensagens atualizadas automaticamente; histórico encerrado disponível por 7 dias.</p>
           </CardHeader>
           <CardContent className="p-0">
             <div className="flex border-b overflow-x-auto p-2 gap-2">
