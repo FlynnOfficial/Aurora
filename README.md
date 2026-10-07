@@ -60,6 +60,7 @@ exceto o que está expressamente permitido abaixo.
 ### Contato
 Para solicitar autorização ou contratar os autores:
 [daniel.ferriani0210@gmail.com / www.linkedin.com/in/daniel-ferriani-de-chico / https://github.com/FlynnOfficial]
+
 [caiqueguiraldello@gmail.com / https://www.linkedin.com/in/ca%C3%ADque-carneiro-guiraldello-39b7991b0 / https://github.com/CaiqueCCG]
 
 ### Isenção de garantia
