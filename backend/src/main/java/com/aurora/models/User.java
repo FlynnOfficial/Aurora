@@ -1,0 +1,74 @@
+package com.aurora.models;
+
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import jakarta.persistence.*;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import java.time.LocalDateTime;
+
+@Entity
+@Table(name = "users")
+@Data
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class User {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(nullable = false, unique = true)
+    private String email;
+
+    @Column(nullable = false)
+    @JsonIgnore
+    private String password;
+
+    @Column(nullable = false)
+    private String name;
+
+    @Column(name = "organization_key", nullable = false)
+    private String organizationKey;
+
+    @Column(nullable = false)
+    @Enumerated(EnumType.STRING)
+    private UserRole role;
+
+    @Column(nullable = false, columnDefinition = "BOOLEAN DEFAULT TRUE")
+    @Builder.Default
+    private Boolean active = true;
+
+    @Transient
+    private LocalDateTime createdAt;
+
+    @Transient
+    private LocalDateTime lastLogin;
+
+    @Column(name = "failed_attempts", columnDefinition = "INT DEFAULT 0")
+    @Builder.Default
+    private Integer failedAttempts = 0;
+
+    @Transient
+    private String assignedSubject;
+
+    @Transient
+    private java.util.Set<String> assignedSubjects;
+
+    @Transient
+    private java.util.Set<String> assignedClasses;
+
+    @PrePersist
+    protected void onCreate() {
+        if (createdAt == null) {
+            createdAt = LocalDateTime.now();
+        }
+    }
+
+    public enum UserRole {
+        STUDENT, TEACHER, ADMIN, SUPER_ADMIN
+    }
+}
