@@ -1,4 +1,5 @@
 # Aurora
+### Sistema de Atividades Escolar
 
 No terminal:
 
@@ -19,8 +20,7 @@ docker compose down
 ```
 
 
-# Aurora
-
+### Informática - A
 ### Feito Por:
 - Daniel Ferriani de Chico
 - Bruno Romano Kimura
