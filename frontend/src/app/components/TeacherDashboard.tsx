@@ -110,27 +110,47 @@ function MyActivitiesPage({ teacher }: { teacher: TeacherDetails }) {
   const [error, setError] = useState('');
   const [selectedSubject, setSelectedSubject] = useState(teacher.subjects?.[0] ?? teacher.subject ?? '');
 
-  useEffect(() => {
-    api.getTeacherActivities()
-      .then((items) => setTeacherActivities(items.map((activity) => ({
-        ...activity,
-        teacher: activity.teacherName,
-        dueDate: activity.dueDate,
-        status: activity.submission?.status?.toLowerCase() ?? 'pending',
-        questions: (activity.questions ?? []).map((question) => ({
-            ...question,
-          statement: question.prompt,
-          type: question.type.toLowerCase(),
-          points: Number(question.points),
-            options: parseOptions(question.options),
-        })),
-      }))))
-      .catch((requestError) => setError(requestError instanceof Error ? requestError.message : 'Erro ao carregar atividades'))
-      .finally(() => setLoading(false));
-  }, []);
+  const [loadAttempt, setLoadAttempt] = useState(0);
 
-  if (loading) return <div className="py-16 text-center text-gray-400">Carregando atividades...</div>;
-  if (error) return <div className="py-16 text-center text-red-500">{error}</div>;
+  useEffect(() => {
+    const controller = new AbortController();
+    setLoading(true);
+    setError('');
+    api.getTeacherActivities(controller.signal)
+      .then((items) => {
+        if (controller.signal.aborted) return;
+        setTeacherActivities(items.map((activity) => ({
+          ...activity,
+          teacher: activity.teacherName,
+          dueDate: activity.dueDate,
+          status: activity.submission?.status?.toLowerCase() ?? 'pending',
+          questions: (activity.questions ?? []).map((question) => ({
+            ...question,
+            statement: question.prompt,
+            type: question.type.toLowerCase(),
+            points: Number(question.points),
+            options: parseOptions(question.options),
+          })),
+        })));
+      })
+      .catch((requestError: unknown) => {
+        if (!controller.signal.aborted) {
+          setError(requestError instanceof Error ? requestError.message : 'Erro ao carregar atividades');
+        }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false);
+      });
+    return () => controller.abort();
+  }, [loadAttempt]);
+
+  if (loading) return <div role="status" className="py-16 text-center text-gray-400">Carregando atividades...</div>;
+  if (error) return (
+    <div className="space-y-4 py-16 text-center">
+      <p role="alert" className="text-red-500">{error}</p>
+      <Button variant="outline" onClick={() => setLoadAttempt((attempt) => attempt + 1)}>Tentar novamente</Button>
+    </div>
+  );
 
   if (teacherActivities.length === 0) {
     return (

@@ -3,6 +3,7 @@ package com.aurora.repositories;
 import com.aurora.models.Student;
 import com.aurora.models.User;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.stereotype.Repository;
 import java.util.Optional;
 import java.util.List;
@@ -13,5 +14,6 @@ public interface StudentRepository extends JpaRepository<Student, Long> {
     Optional<Student> findByEnrollment(String enrollment);
     List<Student> findByClassName(String className);
     List<Student> findByActive(Boolean active);
+    @EntityGraph(attributePaths = "user")
     List<Student> findByOrganizationKeyAndClassNameInAndActiveTrue(String organizationKey, java.util.Set<String> classNames);
 }

@@ -75,28 +75,24 @@ public class AuthService {
     }
 
     public Map<String, Object> refreshToken(String refreshToken) throws Exception {
-        try {
-            var session = jwtUtil.readRefreshToken(refreshToken)
-                    .orElseThrow(() -> new Exception("Refresh token inválido"));
-            String email = session.email();
-            Long userId = session.userId();
+        var session = jwtUtil.readRefreshToken(refreshToken)
+                .orElseThrow(() -> new Exception("Refresh token inválido"));
+        String email = session.email();
+        Long userId = session.userId();
 
-            Optional<User> user = userRepository.findById(userId);
-            if (user.isEmpty() || !user.get().getActive() || !user.get().getEmail().equalsIgnoreCase(email)) {
-                throw new Exception("Usuário inválido ou inativo");
-            }
-
-            User foundUser = user.get();
-            String newAccessToken = jwtUtil.generateAccessToken(userId, email, foundUser.getRole().name());
-
-            Map<String, Object> response = new HashMap<>();
-            response.put("accessToken", newAccessToken);
-            response.put("expiresIn", 3600);
-
-            return response;
-        } catch (Exception e) {
-            throw new Exception("Falha ao renovar token");
+        Optional<User> user = userRepository.findById(userId);
+        if (user.isEmpty() || !user.get().getActive() || !user.get().getEmail().equalsIgnoreCase(email)) {
+            throw new Exception("Usuário inválido ou inativo");
         }
+
+        User foundUser = user.get();
+        String newAccessToken = jwtUtil.generateAccessToken(userId, email, foundUser.getRole().name());
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("accessToken", newAccessToken);
+        response.put("expiresIn", 3600);
+
+        return response;
     }
 
     public User currentUser(Long userId) throws Exception {

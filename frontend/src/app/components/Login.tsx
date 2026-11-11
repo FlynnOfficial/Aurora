@@ -16,9 +16,12 @@ export function Login({ onLogin, onRegister }: LoginProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (submitting) return;
+    setSubmitting(true);
     setError('');
     try {
       const response = await api.login(email, password);
@@ -33,6 +36,8 @@ export function Login({ onLogin, onRegister }: LoginProps) {
       onLogin(user, response.role.toLowerCase() as UserRole);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao conectar ao servidor');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -86,8 +91,8 @@ export function Login({ onLogin, onRegister }: LoginProps) {
               <p className="text-xs text-red-500 text-center">{error}</p>
             )}
 
-            <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700">
-              Entrar
+            <Button type="submit" disabled={submitting} aria-busy={submitting} className="w-full bg-blue-600 hover:bg-blue-700">
+              {submitting ? 'Entrando...' : 'Entrar'}
             </Button>
             <div className="relative">
               <div className="absolute inset-0 flex items-center">

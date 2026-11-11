@@ -82,7 +82,7 @@ public class AuthController {
             User user = authService.currentUser((Long) userId);
             return ResponseEntity.ok(Map.of("userId", user.getId(), "email", user.getEmail(), "name", user.getName(), "role", user.getRole().name()));
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "Sessão inválida"));
+            return ApiErrors.response(HttpStatus.UNAUTHORIZED, e);
         }
     }
 

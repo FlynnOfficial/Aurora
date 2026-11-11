@@ -5,6 +5,10 @@ import com.aurora.models.User;
 import com.aurora.repositories.StudentRepository;
 import com.aurora.repositories.UserRepository;
 import com.aurora.utils.JWTUtil;
+import com.aurora.services.ActivityService;
+import com.aurora.models.ActivityQuestion;
+import jakarta.persistence.EntityManagerFactory;
+import org.hibernate.SessionFactory;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.Cookie;
@@ -47,6 +51,8 @@ class SchoolFlowsTest {
     @Autowired private StudentRepository students;
     @Autowired private PasswordEncoder passwords;
     @Autowired private JWTUtil jwt;
+    @Autowired private ActivityService activityService;
+    @Autowired private EntityManagerFactory entityManagerFactory;
     @Value("${jwt.secret}") private String signingSecret;
     private String organization;
     private Cookie administrator;
@@ -228,6 +234,79 @@ class SchoolFlowsTest {
         mvc.perform(put("/admin/registrations/{id}/reject", registration).cookie(superAdministrator))
                 .andExpect(status().isBadRequest());
         mvc.perform(get("/admin/classes").cookie(login(email("new-admin")))).andExpect(status().isOk());
+    }
+
+    @Test
+    void loadsActivityCollectionsWithoutQueriesPerRecord() throws Exception {
+        createSubmittedActivity();
+        var statistics = entityManagerFactory.unwrap(SessionFactory.class).getStatistics();
+        statistics.setStatisticsEnabled(true);
+        try {
+            statistics.clear();
+            activityService.teacherActivities(teacher);
+            long teacherQueries = statistics.getPrepareStatementCount();
+            statistics.clear();
+            activityService.teacherOverview(teacher);
+            long overviewQueries = statistics.getPrepareStatementCount();
+            statistics.clear();
+            activityService.studentActivities(student);
+            long studentQueries = statistics.getPrepareStatementCount();
+            assertTrue(teacherQueries > 0 && overviewQueries > 0 && studentQueries > 0);
+
+            for (int index = 0; index < 5; index++) createSubmittedActivity();
+
+            statistics.clear();
+            JsonNode listing = json.valueToTree(activityService.teacherActivities(teacher));
+            assertEquals(teacherQueries, statistics.getPrepareStatementCount());
+            assertEquals(6, listing.size());
+            for (JsonNode activity : listing) assertEquals(2, activity.path("questions").size());
+
+            statistics.clear();
+            JsonNode overview = json.valueToTree(activityService.teacherOverview(teacher));
+            assertEquals(overviewQueries, statistics.getPrepareStatementCount());
+            for (JsonNode activity : overview.path("activities")) {
+                assertEquals(1, activity.path("submissions").size());
+                assertEquals(2, activity.path("submissions").get(0).path("answers").size());
+            }
+
+            statistics.clear();
+            JsonNode studentActivities = json.valueToTree(activityService.studentActivities(student));
+            assertEquals(studentQueries, statistics.getPrepareStatementCount());
+            assertEquals(6, studentActivities.size());
+            for (JsonNode activity : studentActivities) {
+                assertFalse(activity.path("questions").get(0).has("correctAnswer"));
+                assertEquals(2, activity.path("submission").path("answers").size());
+            }
+        } finally {
+            statistics.setStatisticsEnabled(false);
+        }
+    }
+
+    private void createSubmittedActivity() throws Exception {
+        var request = new ActivityService.CreateActivityRequest();
+        request.title = "Atividade de validação";
+        request.subject = SUBJECT;
+        request.className = CLASS_NAME;
+        request.dueDate = Instant.now().plus(2, ChronoUnit.DAYS);
+        var objective = new ActivityService.QuestionRequest();
+        objective.type = ActivityQuestion.QuestionType.MULTIPLE_CHOICE;
+        objective.prompt = "Escolha a alternativa";
+        objective.points = java.math.BigDecimal.valueOf(5);
+        objective.options = "[{\"id\":\"a\",\"text\":\"Sim\"}]";
+        objective.correctAnswer = "a";
+        var essay = new ActivityService.QuestionRequest();
+        essay.type = ActivityQuestion.QuestionType.ESSAY;
+        essay.prompt = "Explique sua resposta";
+        essay.points = java.math.BigDecimal.valueOf(5);
+        request.questions = List.of(objective, essay);
+        JsonNode created = json.valueToTree(activityService.create(teacher, request));
+        var objectiveAnswer = new ActivityService.AnswerRequest();
+        objectiveAnswer.questionId = created.path("questions").get(0).path("id").asLong();
+        objectiveAnswer.answer = "a";
+        var essayAnswer = new ActivityService.AnswerRequest();
+        essayAnswer.questionId = created.path("questions").get(1).path("id").asLong();
+        essayAnswer.answer = "Resposta dissertativa";
+        activityService.submit(student, created.path("id").asLong(), List.of(objectiveAnswer, essayAnswer));
     }
 
     private Map<String, Object> draft(String content) {

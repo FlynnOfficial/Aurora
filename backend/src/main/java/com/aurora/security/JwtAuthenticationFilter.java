@@ -12,6 +12,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
+import org.springframework.dao.DataAccessException;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
@@ -26,17 +27,26 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
-        jwtUtil.readAccessToken(accessCookie(request)).ifPresent(session ->
-            userRepository.findById(session.userId()).filter(user ->
-                Boolean.TRUE.equals(user.getActive()) && user.getEmail().equalsIgnoreCase(session.email())
-                        && user.getRole().name().equals(session.role())
-            ).ifPresent(user -> {
-                var authentication = UsernamePasswordAuthenticationToken.authenticated(
-                        user.getEmail(), null, List.of(new SimpleGrantedAuthority("ROLE_" + session.role())));
-                SecurityContextHolder.getContext().setAuthentication(authentication);
-                request.setAttribute("userId", user.getId());
-                request.setAttribute("role", session.role());
-            }));
+        try {
+            jwtUtil.readAccessToken(accessCookie(request)).ifPresent(session ->
+                userRepository.findById(session.userId()).filter(user ->
+                    Boolean.TRUE.equals(user.getActive()) && user.getEmail().equalsIgnoreCase(session.email())
+                            && user.getRole().name().equals(session.role())
+                ).ifPresent(user -> {
+                    var authentication = UsernamePasswordAuthenticationToken.authenticated(
+                            user.getEmail(), null, List.of(new SimpleGrantedAuthority("ROLE_" + session.role())));
+                    SecurityContextHolder.getContext().setAuthentication(authentication);
+                    request.setAttribute("userId", user.getId());
+                    request.setAttribute("role", session.role());
+                }));
+        } catch (DataAccessException error) {
+            logger.warn("Banco indisponível ao validar sessão (" + error.getClass().getSimpleName() + ")");
+            response.setStatus(HttpServletResponse.SC_SERVICE_UNAVAILABLE);
+            response.setContentType("application/json");
+            response.setCharacterEncoding("UTF-8");
+            response.getWriter().write("{\"error\":\"Serviço temporariamente indisponível. Tente novamente.\"}");
+            return;
+        }
         chain.doFilter(request, response);
     }
 

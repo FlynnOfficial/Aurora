@@ -100,17 +100,19 @@ public class ActivityService {
                 .map(activity -> activityView(activity, null, true)).toList();
     }
 
-            @Transactional(readOnly = true)
-            public Map<String, Object> teacherOverview(Long userId) throws Exception {
-                Teacher teacher = teacherRepository.findByUser(userRepository.findById(userId)
+    @Transactional(readOnly = true)
+    public Map<String, Object> teacherOverview(Long userId) throws Exception {
+        Teacher teacher = teacherRepository.findByUser(userRepository.findById(userId)
                 .orElseThrow(() -> new Exception("Usuario nao encontrado")))
                 .orElseThrow(() -> new Exception("Professor nao encontrado"));
-                List<Map<String, Object>> students = studentRepository.findByOrganizationKeyAndClassNameInAndActiveTrue(
+        List<Map<String, Object>> students = studentRepository.findByOrganizationKeyAndClassNameInAndActiveTrue(
                 teacher.getOrganizationKey(), teacher.getClasses() == null ? Set.of() : teacher.getClasses()).stream()
                 .map(student -> {
                     Map<String, Object> value = new LinkedHashMap<>();
-                    value.put("id", student.getId()); value.put("name", student.getUser().getName());
-                    value.put("enrollment", student.getEnrollment()); value.put("className", student.getClassName());
+                    value.put("id", student.getId());
+                    value.put("name", student.getUser().getName());
+                    value.put("enrollment", student.getEnrollment());
+                    value.put("className", student.getClassName());
                     return value;
                 }).toList();
         List<Activity> teacherActivities = activityRepository.findByTeacherOrderByCreatedAtDesc(teacher);
@@ -194,6 +196,7 @@ public class ActivityService {
             answer.setAnswer(input == null ? null : input.answer);
             if (isAutomaticallyGraded(question)) answer.setScore(automaticScore(question, answer.getAnswer()));
             answerRepository.save(answer);
+            submission.getAnswers().add(answer);
         }
         updateSubmissionScore(submission);
         return submissionView(submissionRepository.save(submission), false);
@@ -296,7 +299,7 @@ public class ActivityService {
         result.put("studentName", submission.getStudent().getUser().getName());
         result.put("studentId", submission.getStudent().getId());
         if (includeAnswers) {
-            result.put("answers", answerRepository.findBySubmission(submission).stream().map(answer -> {
+            result.put("answers", submission.getAnswers().stream().map(answer -> {
                 Map<String, Object> value = new LinkedHashMap<>(); value.put("questionId", answer.getQuestion().getId());
                 value.put("answer", answer.getAnswer()); value.put("score", answer.getScore()); value.put("teacherFeedback", answer.getTeacherFeedback());
                 if (submission.getStatus() == Submission.Status.GRADED) value.put("correctAnswer", answer.getQuestion().getCorrectAnswer());

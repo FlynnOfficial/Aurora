@@ -1,2 +1,4 @@
-com\aurora\security\SecurityTest.class
+com\aurora\services\AuthServiceTest.class
 com\aurora\SchoolFlowsTest.class
+com\aurora\security\JwtAuthenticationFilterTest.class
+com\aurora\security\SecurityTest.class

@@ -1,2 +1,4 @@
 C:\Projects\Aurora\backend\src\test\java\com\aurora\SchoolFlowsTest.java
+C:\Projects\Aurora\backend\src\test\java\com\aurora\security\JwtAuthenticationFilterTest.java
 C:\Projects\Aurora\backend\src\test\java\com\aurora\security\SecurityTest.java
+C:\Projects\Aurora\backend\src\test\java\com\aurora\services\AuthServiceTest.java

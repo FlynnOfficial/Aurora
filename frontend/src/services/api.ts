@@ -7,10 +7,18 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '/api';
 
 let refreshInFlight: Promise<unknown> | undefined;
 
+export class ApiError extends Error {
+  constructor(message: string, readonly status: number) {
+    super(message);
+  }
+}
+
 function refreshSession() {
   refreshInFlight ??= request('/auth/refresh-token', { method: 'POST' }, false)
     .catch((error: unknown) => {
-      window.dispatchEvent(new Event('aurora:session-expired'));
+      if (error instanceof ApiError && error.status === 401) {
+        window.dispatchEvent(new Event('aurora:session-expired'));
+      }
       throw error;
     })
     .finally(() => { refreshInFlight = undefined; });
@@ -21,7 +29,13 @@ async function request<T>(path: string, init: RequestInit = {}, retryOnUnauthori
   const headers = new Headers(init.headers);
   headers.set('Content-Type', 'application/json');
 
-  const response = await fetch(`${API_BASE_URL}${path}`, { ...init, headers, credentials: 'include' });
+  const timeout = AbortSignal.timeout(60000);
+  const signal = init.signal ? AbortSignal.any([init.signal, timeout]) : timeout;
+  const response = await fetch(`${API_BASE_URL}${path}`, { ...init, headers, signal, credentials: 'include' })
+    .catch((error: unknown) => {
+      if (timeout.aborted) throw new Error('O servidor demorou para responder. Tente novamente.');
+      throw error;
+    });
   const contentType = response.headers.get('content-type') ?? '';
   const body = contentType.includes('application/json') ? await response.json() : null;
 
@@ -30,7 +44,7 @@ async function request<T>(path: string, init: RequestInit = {}, retryOnUnauthori
       await refreshSession();
       return request<T>(path, init, false);
     }
-    throw new Error(body?.error ?? `Erro HTTP ${response.status}`);
+    throw new ApiError(body?.error ?? `Erro HTTP ${response.status}`, response.status);
   }
 
   return body as T;
@@ -66,7 +80,7 @@ export const api = {
   // Teacher endpoints
   getTeacherProfile: (userId: number) => request<TeacherProfile>(`/teachers/${userId}`),
 
-  getTeacherActivities: () => request<ApiActivity[]>('/activities/teacher'),
+  getTeacherActivities: (signal?: AbortSignal) => request<ApiActivity[]>('/activities/teacher', { signal }),
   getTeacherOverview: () => request<TeacherOverview>('/activities/teacher/overview'),
 
   createActivity: (activity: unknown) => request('/activities', {
