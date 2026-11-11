@@ -20,12 +20,13 @@ public class StudentController {
     private final StudentService studentService;
 
     @PostMapping
-    public ResponseEntity<?> createStudent(@RequestBody CreateStudentRequest request) {
+    public ResponseEntity<?> createStudent(@RequestBody CreateStudentRequest request, HttpServletRequest httpRequest) {
         try {
+            studentService.authorizeUserAccess(userId(httpRequest), role(httpRequest), request.userId);
             Student student = studentService.createStudent(request.userId, request.className, request.enrollment);
             return ResponseEntity.ok(student);
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(createError(e.getMessage()));
+            return ApiErrors.badRequest(e);
         }
     }
 
@@ -37,7 +38,7 @@ public class StudentController {
             return student.map(ResponseEntity::ok)
                     .orElse(ResponseEntity.notFound().build());
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(createError(e.getMessage()));
+            return ApiErrors.badRequest(e);
         }
     }
 
@@ -45,10 +46,10 @@ public class StudentController {
     public ResponseEntity<?> getStudentsByClass(@PathVariable String className, HttpServletRequest request) {
         try {
             requireRole(request, "ADMIN", "SUPER_ADMIN");
-            List<Student> students = studentService.getStudentsByClass(className);
+            List<Student> students = studentService.getStudentsByClass(userId(request), className);
             return ResponseEntity.ok(students);
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(createError(e.getMessage()));
+            return ApiErrors.badRequest(e);
         }
     }
 
@@ -59,7 +60,7 @@ public class StudentController {
             List<Grade> grades = studentService.getStudentGrades(studentId);
             return ResponseEntity.ok(grades);
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(createError(e.getMessage()));
+            return ApiErrors.badRequest(e);
         }
     }
 
@@ -72,7 +73,7 @@ public class StudentController {
             response.put("average", average);
             return ResponseEntity.ok(response);
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(createError(e.getMessage()));
+            return ApiErrors.badRequest(e);
         }
     }
 
@@ -80,10 +81,11 @@ public class StudentController {
     public ResponseEntity<?> updateStudent(@PathVariable Long studentId, @RequestBody Student updates, HttpServletRequest request) {
         try {
             studentService.authorizeAccess(userId(request), role(request), studentId);
+            if ("STUDENT".equals(role(request))) updates.setClassName(null);
             Student updated = studentService.updateStudent(studentId, updates);
             return ResponseEntity.ok(updated);
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(createError(e.getMessage()));
+            return ApiErrors.badRequest(e);
         }
     }
 
@@ -91,17 +93,12 @@ public class StudentController {
     public ResponseEntity<?> deleteStudent(@PathVariable Long studentId, HttpServletRequest request) {
         try {
             requireRole(request, "ADMIN", "SUPER_ADMIN");
+            studentService.authorizeAccess(userId(request), role(request), studentId);
             studentService.deleteStudent(studentId);
             return ResponseEntity.ok(createMessage("Aluno deletado com sucesso"));
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(createError(e.getMessage()));
+            return ApiErrors.badRequest(e);
         }
-    }
-
-    private Map<String, String> createError(String message) {
-        Map<String, String> error = new HashMap<>();
-        error.put("error", message);
-        return error;
     }
 
     private Map<String, String> createMessage(String message) {

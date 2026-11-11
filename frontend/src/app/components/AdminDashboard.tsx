@@ -15,20 +15,11 @@ import {
   ChevronDown, FlaskConical,
 } from 'lucide-react';
 import { ChangePasswordModal } from './ChangePasswordModal';
+import type { AuthenticatedUser } from '../../types';
+import type { AdminUser, SchoolClass, Subject } from '../types/school';
 import { api } from '../../services/api';
 
-interface AdminDashboardProps { user: any; onLogout: () => void; }
-
-const DEFAULT_SUBJECTS = [
-  'Matemática', 'Português', 'História', 'Ciências', 'Educação Física',
-  'Geografia', 'Inglês', 'Arte', 'Física', 'Química', 'Biologia',
-  'Filosofia', 'Sociologia',
-];
-
-const ALL_CLASSES = [
-  '6º Ano A', '6º Ano B', '7º Ano A', '7º Ano B',
-  '8º Ano A', '8º Ano B', '9º Ano A', '9º Ano B',
-];
+interface AdminDashboardProps { user: AuthenticatedUser; onLogout: () => void; }
 
 function generatePassword() {
   const upper = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
@@ -36,10 +27,14 @@ function generatePassword() {
   const digits = '0123456789';
   const special = '!@#$%&*';
   const all = upper + lower + digits + special;
-  const rand = (s: string) => s[Math.floor(Math.random() * s.length)];
+  const rand = (s: string) => s[crypto.getRandomValues(new Uint32Array(1))[0] % s.length];
   const base = [rand(upper), rand(lower), rand(digits), rand(special)];
   for (let i = 0; i < 6; i++) base.push(rand(all));
-  return base.sort(() => Math.random() - 0.5).join('');
+  for (let i = base.length - 1; i > 0; i--) {
+    const j = crypto.getRandomValues(new Uint32Array(1))[0] % (i + 1);
+    [base[i], base[j]] = [base[j], base[i]];
+  }
+  return base.join('');
 }
 
 function getErrorMessage(error: unknown) {
@@ -392,11 +387,11 @@ export function AdminDashboard({ user, onLogout }: AdminDashboardProps) {
   const [modal, setModal] = useState<Modal | null>(null);
   const [showChangePwd, setShowChangePwd] = useState(false);
 
-  const [students, setStudents] = useState<any[]>([]);
-  const [teachers, setTeachers] = useState<any[]>([]);
-  const [admins, setAdmins] = useState<any[]>([]);
-  const [subjects, setSubjects] = useState<any[]>([]);
-  const [classes, setClasses] = useState<any[]>([]);
+  const [students, setStudents] = useState<AdminUser[]>([]);
+  const [teachers, setTeachers] = useState<AdminUser[]>([]);
+  const [admins, setAdmins] = useState<AdminUser[]>([]);
+  const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [classes, setClasses] = useState<SchoolClass[]>([]);
   const [newSubject, setNewSubject] = useState('');
   const [subjectError, setSubjectError] = useState('');
   const [newClass, setNewClass] = useState('');
@@ -405,7 +400,7 @@ export function AdminDashboard({ user, onLogout }: AdminDashboardProps) {
 
   const loadAdminData = async () => {
     const [users, loadedSubjects, loadedClasses] = await Promise.all([
-      api.getAdminUsers() as Promise<any[]>, api.getSubjects() as Promise<any[]>, api.getClasses() as Promise<any[]>,
+      api.getAdminUsers(), api.getSubjects(), api.getClasses(),
     ]);
     setStudents(users.filter((entry) => entry.role === 'STUDENT'));
     setTeachers(users.filter((entry) => entry.role === 'TEACHER'));
@@ -434,16 +429,16 @@ export function AdminDashboard({ user, onLogout }: AdminDashboardProps) {
     if (subjects.some((s) => s.name.toLowerCase() === trimmed.toLowerCase())) {
       setSubjectError('Essa materia ja existe.'); return;
     }
-    api.createSubject(trimmed).then((value: any) => { setSubjects((p) => [...p, value]); setNewSubject(''); setSubjectError(''); }).catch((e) => setSubjectError(e.message));
+    api.createSubject(trimmed).then((value) => { setSubjects((p) => [...p, value]); setNewSubject(''); setSubjectError(''); }).catch((e) => setSubjectError(e.message));
   };
 
-  const removeSubject = (s: any) => {
+  const removeSubject = (s: Subject) => {
     api.deleteSubject(s.id).then(() => setSubjects((p) => p.filter((x) => x.id !== s.id))).catch(() => {});
   };
 
   const addClass = () => {
     if (!newClass.trim()) { setClassError('Digite o nome da turma.'); return; }
-    api.createClass(newClass, new Date().getFullYear()).then((value: any) => {
+    api.createClass(newClass, new Date().getFullYear()).then((value) => {
       setClasses((previous) => previous.some((schoolClass) => schoolClass.id === value.id) ? previous : [...previous, value]);
       setNewClass('');
       setClassError('');
@@ -459,7 +454,7 @@ export function AdminDashboard({ user, onLogout }: AdminDashboardProps) {
       {modal?.type === 'add_teacher' && (
         <AddTeacherPanel availableSubjects={subjects.map((subject) => subject.name)} availableClasses={classes.map((schoolClass) => schoolClass.name)}
           onAdd={async (t) => {
-            const created: any = await api.createAdminUser({ name: t.name, email: t.email, password: t.password, role: 'TEACHER', subject: t.subjects[0], subjects: t.subjects, classes: t.classes });
+            const created = await api.createAdminUser({ name: t.name, email: t.email, password: t.password, role: 'TEACHER', subject: t.subjects[0], subjects: t.subjects, classes: t.classes });
             setTeachers((previous) => [...previous, created]);
           }}
           onClose={() => setModal(null)}
@@ -468,7 +463,7 @@ export function AdminDashboard({ user, onLogout }: AdminDashboardProps) {
       {modal?.type === 'add_student' && (
         <AddStudentPanel availableClasses={classes.map((schoolClass) => schoolClass.name)}
           onAdd={async (s) => {
-            const created: any = await api.createAdminUser({ name: s.name, email: s.email, password: s.password, role: 'STUDENT', className: s.turma, enrollment: s.ra });
+            const created = await api.createAdminUser({ name: s.name, email: s.email, password: s.password, role: 'STUDENT', className: s.turma, enrollment: s.ra });
             setStudents((previous) => [...previous, created]);
           }}
           onClose={() => setModal(null)}
@@ -477,7 +472,7 @@ export function AdminDashboard({ user, onLogout }: AdminDashboardProps) {
       {modal?.type === 'add_admin' && (
         <AddAdminPanel
           onAdd={async (a) => {
-            const created: any = await api.createAdminUser({ name: a.name, email: a.email, password: a.password, role: 'ADMIN' });
+            const created = await api.createAdminUser({ name: a.name, email: a.email, password: a.password, role: 'ADMIN' });
             setAdmins((previous) => [...previous, created]);
           }}
           onClose={() => setModal(null)}
@@ -612,7 +607,7 @@ export function AdminDashboard({ user, onLogout }: AdminDashboardProps) {
                 <CardContent>
                   <div className="space-y-3">
                     {classes.map((schoolClass) => {
-                      const count = students.filter((s) => s.className === schoolClass.name || s.class === schoolClass.name).length;
+                      const count = students.filter((s) => s.className === schoolClass.name).length;
                       return (
                         <div key={schoolClass.id} className="flex items-center justify-between pb-2 border-b last:border-0">
                           <span className="text-sm">{schoolClass.name}</span>
@@ -663,7 +658,7 @@ export function AdminDashboard({ user, onLogout }: AdminDashboardProps) {
                             </div>
                           </TableCell>
                           <TableCell>{student.enrollment}</TableCell>
-                          <TableCell>{student.className || student.class || 'Sem turma'}</TableCell>
+                          <TableCell>{student.className || 'Sem turma'}</TableCell>
                           <TableCell>
                             {avg !== null ? (
                               <span className={`font-medium ${avg >= 7 ? 'text-green-600' : avg >= 5 ? 'text-yellow-600' : 'text-red-600'}`}>

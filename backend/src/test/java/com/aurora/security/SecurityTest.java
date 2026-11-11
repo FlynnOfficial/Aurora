@@ -6,12 +6,12 @@ import com.aurora.utils.JWTUtil;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.TestPropertySource;
+import org.springframework.test.context.ActiveProfiles;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 @SpringBootTest
-@TestPropertySource(locations = "classpath:application-test.properties")
+@ActiveProfiles("test")
 public class SecurityTest {
 
     @Autowired
@@ -67,8 +67,8 @@ public class SecurityTest {
         String accessToken = jwtUtil.generateAccessToken(1L, "user@aurora.test", "STUDENT");
         String refreshToken = jwtUtil.generateRefreshToken(1L, "user@aurora.test");
 
-        assertTrue(jwtUtil.isAccessToken(accessToken));
-        assertFalse(jwtUtil.isAccessToken(refreshToken));
-        assertTrue(jwtUtil.isRefreshToken(refreshToken));
+        assertTrue(jwtUtil.readAccessToken(accessToken).isPresent());
+        assertFalse(jwtUtil.readAccessToken(refreshToken).isPresent());
+        assertTrue(jwtUtil.readRefreshToken(refreshToken).isPresent());
     }
 }

@@ -1,158 +1,173 @@
 import { useEffect, useRef, useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
-import { Button } from './ui/button';
-import { Input } from './ui/input';
-import { Badge } from './ui/badge';
-import { LifeBuoy, X, Send, Plus, CheckCircle } from 'lucide-react';
+import type { FormEvent } from 'react';
+import { LifeBuoy, MessageCircle, Plus, Send, X } from 'lucide-react';
 import { api } from '../../services/api';
-
-interface SupportMessage {
-  id: number;
-  content: string;
-  createdAt: string;
-  sender: { id: number; name: string };
-}
-
-interface SupportChatRecord {
-  id: number;
-  status: 'OPEN' | 'CLOSED';
-  createdAt: string;
-  closedAt?: string;
-  requester: { id: number; name: string; email: string; role: string };
-  messages: SupportMessage[];
-}
+import { useChatHistory } from '../hooks/useChatHistory';
+import { useChatPolling } from '../hooks/useChatPolling';
+import { useMessageDraft } from '../hooks/useMessageDraft';
+import { Button } from './ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
+import { Input } from './ui/input';
 
 interface SupportChatProps {
-  user: { id?: number; name: string };
-  userType: 'student' | 'teacher' | 'admin' | 'super_admin';
+  user: { id: number };
+  userType: 'student' | 'teacher' | 'admin';
 }
 
-const formatTime = (value: string) => new Date(value).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
+type Destination = { kind: 'support' } | { kind: 'contact' | 'chat'; id: number };
 
-function mergeChat(current: SupportChatRecord | undefined, incoming: SupportChatRecord): SupportChatRecord {
-  if (!current) return incoming;
-  const messages = new Map(current.messages.map((message) => [message.id, message]));
-  incoming.messages.forEach((message) => messages.set(message.id, message));
-  return {
-    ...current,
-    ...incoming,
-    status: current.status === 'CLOSED' ? 'CLOSED' : incoming.status,
-    closedAt: incoming.closedAt ?? current.closedAt,
-    messages: [...messages.values()].sort((left, right) =>
-      left.createdAt.localeCompare(right.createdAt) || left.id - right.id),
-  };
-}
-
-function mergeChats(current: SupportChatRecord[], incoming: SupportChatRecord[]): SupportChatRecord[] {
-  return incoming.map((chat) => mergeChat(current.find((existing) => existing.id === chat.id), chat));
-}
+const formatTime = (value: string) => new Date(value).toLocaleString('pt-BR', {
+  dateStyle: 'short', timeStyle: 'short',
+});
 
 export function SupportChat({ user, userType }: SupportChatProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [chats, setChats] = useState<SupportChatRecord[]>([]);
-  const [selectedId, setSelectedId] = useState<number>();
+  const [destination, setDestination] = useState<Destination>();
   const [input, setInput] = useState('');
+  const [pending, setPending] = useState(false);
   const [error, setError] = useState('');
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const refreshInProgress = useRef(false);
-  const isSuperAdmin = userType === 'super_admin';
-  const selectedChat = chats.find((chat) => chat.id === selectedId);
+  const [revision, setRevision] = useState(0);
+  const end = useRef<HTMLDivElement>(null);
+  const messageDraft = useMessageDraft();
+  const academicChat = userType !== 'admin';
+  const selectedId = destination?.kind === 'chat' ? destination.id : null;
+  const chats = useChatPolling(isOpen ? 'chats' : null, api.getSupportChats, revision);
+  const contacts = useChatPolling(isOpen && academicChat ? 'contacts' : null, api.getChatContacts, 0, 30000);
+  const history = useChatHistory(isOpen ? selectedId : null, revision);
+  const selectedChat = chats.data?.find((chat) => chat.id === selectedId);
+  const direct = selectedChat?.recipient;
+  const recipient = direct && selectedChat
+    ? direct.id === user.id ? selectedChat.requester : direct
+    : null;
+  const contact = destination?.kind === 'contact' ? contacts.data?.find((item) => item.id === destination.id) : undefined;
+  const canSend = Boolean(contact || destination?.kind === 'support' || selectedChat?.status === 'OPEN');
+  const lastMessage = history.data?.at(-1)?.id;
+  const chatError = error || history.error || chats.error || contacts.error;
 
-  useEffect(() => {
-    if (!isOpen) return;
-    let active = true;
-    const refresh = async () => {
-      if (refreshInProgress.current) return;
-      refreshInProgress.current = true;
-      try {
-        const loaded = await api.getSupportChats() as SupportChatRecord[];
-        if (active) {
-          setChats((current) => mergeChats(current, loaded));
-          setError('');
-        }
-      } catch (err) {
-        if (active) setError(err instanceof Error ? err.message : 'Não foi possível carregar os atendimentos');
-      } finally {
-        refreshInProgress.current = false;
-      }
-    };
-    void refresh();
-    const interval = window.setInterval(() => void refresh(), 3000);
-    return () => {
-      active = false;
-      window.clearInterval(interval);
-    };
-  }, [isOpen]);
-  useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [selectedChat?.messages.length]);
+  useEffect(() => { end.current?.scrollIntoView({ block: 'nearest' }); }, [isOpen, selectedId, lastMessage]);
 
-  const send = async () => {
-    if (!input.trim()) return;
+  const select = (target: Destination) => {
+    setDestination(target);
+    setInput('');
+    setError('');
+  };
+
+  const send = async (event: FormEvent) => {
+    event.preventDefault();
+    const content = input.trim();
+    if (!destination || !canSend || !content || pending) return;
+    setPending(true);
+    setError('');
+    const key = destination.kind === 'support' ? 'support' : `${destination.kind}:${destination.id}`;
+    const draft = messageDraft.prepare(key, content);
     try {
-      const chat = selectedChat
-        ? await api.sendSupportMessage(selectedChat.id, input.trim())
-        : await api.createSupportChat(input.trim());
-      setChats((current) => {
-        const updated = chat as SupportChatRecord;
-        const previous = current.find((item) => item.id === updated.id);
-        const next = current.filter((item) => item.id !== updated.id);
-        return [mergeChat(previous, updated), ...next];
-      });
-      setSelectedId((chat as SupportChatRecord).id);
+      if (destination.kind === 'chat') {
+        await api.sendSupportMessage(destination.id, draft);
+      } else {
+        const chat = destination.kind === 'support'
+          ? await api.createSupportChat(draft)
+          : await api.startDirectChat(destination.id, draft);
+        setDestination({ kind: 'chat', id: chat.id });
+      }
+      messageDraft.clear();
       setInput('');
-      setError('');
+      setRevision((value) => value + 1);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Não foi possível enviar a mensagem');
+    } finally {
+      setPending(false);
     }
   };
 
   const closeChat = async () => {
-    if (!selectedChat) return;
+    if (!selectedChat || pending) return;
+    setPending(true);
+    setError('');
     try {
-      const closed = await api.closeSupportChat(selectedChat.id) as SupportChatRecord;
-      setChats((current) => current.map((chat) => chat.id === closed.id ? closed : chat));
+      await api.closeSupportChat(selectedChat.id);
+      setRevision((value) => value + 1);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Não foi possível encerrar o atendimento');
+    } finally {
+      setPending(false);
     }
   };
 
   return (
-    <div className="fixed bottom-3 right-3 sm:bottom-4 sm:right-4 z-50">
+    <div className="fixed bottom-3 right-3 z-50 sm:bottom-4 sm:right-4">
       {!isOpen ? (
-        <Button aria-label="Abrir suporte" onClick={() => setIsOpen(true)} className="rounded-full size-14 bg-blue-600 hover:bg-blue-700 shadow-lg">
-          <LifeBuoy className="size-6" />
+        <Button aria-label="Abrir mensagens" onClick={() => setIsOpen(true)} className="size-14 rounded-full bg-blue-600 shadow-lg hover:bg-blue-700">
+          {academicChat ? <MessageCircle className="size-6" /> : <LifeBuoy className="size-6" />}
         </Button>
       ) : (
-        <Card className="w-[calc(100vw-1.5rem)] sm:w-[min(92vw,28rem)] max-h-[calc(100dvh-1.5rem)] shadow-2xl flex flex-col">
-          <CardHeader className="bg-blue-600 text-white rounded-t-lg p-4">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-lg flex items-center gap-2"><LifeBuoy className="size-5" />Suporte Aurora</CardTitle>
-              <Button variant="ghost" size="sm" onClick={() => setIsOpen(false)} className="text-white hover:bg-blue-700 min-h-10 min-w-10 p-0"><X className="size-4" /></Button>
-            </div>
-            <p className="text-xs text-blue-100">Fale com a equipe de suporte. Mensagens atualizadas automaticamente; histórico encerrado disponível por 7 dias.</p>
+        <Card className="flex max-h-[calc(100dvh-1.5rem)] w-[calc(100vw-1.5rem)] flex-col gap-0 overflow-hidden py-0 shadow-2xl sm:w-[min(92vw,28rem)]">
+          <CardHeader className="flex flex-row items-center justify-between bg-blue-600 p-4 text-white">
+            <CardTitle className="text-lg">{academicChat ? 'Mensagens Aurora' : 'Suporte Aurora'}</CardTitle>
+            <Button aria-label="Fechar mensagens" variant="ghost" size="icon" onClick={() => setIsOpen(false)} className="hover:bg-blue-700 hover:text-white">
+              <X className="size-4" />
+            </Button>
           </CardHeader>
-          <CardContent className="p-0">
-            <div className="flex border-b overflow-x-auto p-2 gap-2">
-              {chats.map((chat) => (
-                <button key={chat.id} onClick={() => setSelectedId(chat.id)} className={`shrink-0 rounded-md border px-2 py-1 text-xs text-left ${selectedId === chat.id ? 'border-blue-600 bg-blue-50' : 'border-gray-200'}`}>
-                  <span className="block font-medium">Atendimento #{chat.id}</span>
-                  <span className="text-gray-500">{chat.status === 'OPEN' ? 'Aberto' : 'Encerrado'}</span>
-                </button>
+          <CardContent className="flex min-h-0 flex-col p-0">
+            <div className="flex shrink-0 gap-2 overflow-x-auto border-b p-2">
+              <Button variant="outline" size="sm" disabled={pending} onClick={() => select({ kind: 'support' })}>
+                <Plus className="size-4" /> Novo atendimento
+              </Button>
+              {chats.data?.map((chat) => (
+                <Button key={chat.id} variant={chat.id === selectedId ? 'default' : 'outline'} size="sm"
+                  aria-pressed={chat.id === selectedId} disabled={pending} onClick={() => select({ kind: 'chat', id: chat.id })}>
+                  {chat.recipient
+                    ? chat.recipient.id === user.id ? chat.requester.name : chat.recipient.name
+                    : `Atendimento #${chat.id}`}
+                </Button>
               ))}
-              <Button variant="outline" size="sm" onClick={() => setSelectedId(undefined)} className="shrink-0"><Plus className="size-4" />Novo</Button>
             </div>
-            {selectedChat && (
-              <div className="flex items-center justify-between px-4 py-2 border-b text-xs">
-                <div><span className="font-medium">{isSuperAdmin ? selectedChat.requester.name : 'Seu atendimento'}</span><span className="ml-2 text-gray-400">{formatTime(selectedChat.createdAt)}</span></div>
-                <div className="flex items-center gap-2"><Badge variant={selectedChat.status === 'OPEN' ? 'default' : 'secondary'}>{selectedChat.status === 'OPEN' ? 'Aberto' : 'Encerrado'}</Badge>{selectedChat.status === 'OPEN' && <Button variant="ghost" size="sm" onClick={closeChat} className="h-7 px-2 text-gray-500"><CheckCircle className="size-3 mr-1" />Encerrar</Button>}</div>
+            {academicChat && (
+              <div className="shrink-0 border-b p-2">
+                <label htmlFor="chat-contact" className="sr-only">Iniciar conversa</label>
+                <select id="chat-contact" className="w-full rounded-md border bg-background px-2 py-1.5 text-sm"
+                  disabled={pending || !contacts.data?.length || !chats.data} value={contact?.id ?? ''}
+                  onChange={(event) => {
+                    const id = Number(event.target.value);
+                    if (!id) return;
+                    const existing = chats.data?.find((chat) => chat.recipient &&
+                      (chat.recipient.id === id || chat.requester.id === id));
+                    select(existing ? { kind: 'chat', id: existing.id } : { kind: 'contact', id });
+                  }}>
+                  <option value="">{contacts.loading ? 'Carregando contatos…'
+                    : contacts.data?.length ? 'Iniciar conversa' : 'Nenhum contato disponível'}</option>
+                  {contacts.data?.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+                </select>
               </div>
             )}
-            <div className="min-h-0 h-[clamp(12rem,45dvh,18rem)] overflow-y-auto p-3 sm:p-4 space-y-3">
-              {!selectedChat && <p className="text-sm text-gray-500 text-center py-10">Descreva sua dúvida para iniciar um atendimento.</p>}
-              {selectedChat?.messages.map((message) => <div key={message.id} className={`flex ${message.sender.id === user.id ? 'justify-end' : 'justify-start'}`}><div className={`max-w-[85%] rounded-lg p-3 ${message.sender.id === user.id ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-900'}`}><p className="text-sm">{message.content}</p><span className="text-[10px] opacity-70 mt-1 block">{message.sender.name} · {formatTime(message.createdAt)}</span></div></div>)}
-              <div ref={messagesEndRef} />
+            <div className="flex items-center justify-between gap-2 border-b px-4 py-2 text-sm">
+              <span className="min-w-0 truncate font-medium">{recipient?.name ?? contact?.name
+                ?? (destination ? 'Suporte Aurora' : 'Conversas')}</span>
+              {selectedChat && !direct && (selectedChat.status === 'CLOSED'
+                ? <span className="text-xs text-gray-500">Encerrado</span>
+                : <Button variant="ghost" size="sm" disabled={pending} onClick={() => void closeChat()}>Encerrar</Button>)}
             </div>
-            {error && <p className="px-4 pb-2 text-xs text-red-600">{error}</p>}
-            {(!selectedChat || selectedChat.status === 'OPEN') && <div className="border-t p-3 flex gap-2"><Input placeholder="Escreva para o suporte..." value={input} onChange={(event) => setInput(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') void send(); }} /><Button aria-label="Enviar mensagem" onClick={() => void send()} className="bg-blue-600 hover:bg-blue-700"><Send className="size-4" /></Button></div>}
+            <div className="min-h-0 h-[clamp(10rem,42dvh,18rem)] space-y-3 overflow-y-auto p-3 sm:p-4" role="log" aria-label="Histórico">
+              {(chats.loading || history.loading) && <p role="status" className="text-sm text-gray-500">Carregando…</p>}
+              {!destination && !chats.loading && <p className="text-sm text-gray-500">Selecione uma conversa ou inicie um atendimento.</p>}
+              {history.data?.map((message) => {
+                const sent = message.sender.id === user.id;
+                return <div key={message.id} className={`flex ${sent ? 'justify-end' : 'justify-start'}`}>
+                  <div className={`max-w-[85%] rounded-lg p-3 ${sent ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-900'}`}>
+                    <p className="break-words whitespace-pre-wrap text-sm">{message.content}</p>
+                    <span className="mt-1 block text-[10px] opacity-75">{message.sender.name} · {formatTime(message.createdAt)}</span>
+                  </div>
+                </div>;
+              })}
+              <div ref={end} />
+            </div>
+            {chatError && <p role="alert" className="px-4 py-2 text-xs text-red-600">{chatError}</p>}
+            {canSend && <form onSubmit={send} className="flex shrink-0 gap-2 border-t p-3">
+              <Input aria-label="Mensagem" placeholder="Escreva uma mensagem…" maxLength={4000}
+                disabled={pending} value={input} onChange={(event) => setInput(event.target.value)} />
+              <Button type="submit" aria-label="Enviar mensagem" disabled={pending || !input.trim()} className="bg-blue-600 hover:bg-blue-700">
+                <Send className="size-4" />
+              </Button>
+            </form>}
           </CardContent>
         </Card>
       )}

@@ -1,3 +1,10 @@
 node_modules
 dist
 .git
+.env
+.env.*
+.vercel
+*.pem
+*.key
+*.crt
+*.cer

@@ -34,7 +34,7 @@ public class AdminController {
             List<Registration> registrations = adminService.getPendingRegistrations();
             return ResponseEntity.ok(registrations);
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(createError(e.getMessage()));
+            return ApiErrors.badRequest(e);
         }
     }
 
@@ -43,7 +43,7 @@ public class AdminController {
         try {
             return ResponseEntity.ok(adminService.getAllRegistrations());
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(createError(e.getMessage()));
+            return ApiErrors.badRequest(e);
         }
     }
 
@@ -53,7 +53,7 @@ public class AdminController {
             Registration registration = adminService.approveRegistration(registrationId);
             return ResponseEntity.ok(registration);
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(createError(e.getMessage()));
+            return ApiErrors.badRequest(e);
         }
     }
 
@@ -63,7 +63,7 @@ public class AdminController {
             Registration registration = adminService.rejectRegistration(registrationId);
             return ResponseEntity.ok(registration);
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(createError(e.getMessage()));
+            return ApiErrors.badRequest(e);
         }
     }
 
@@ -75,7 +75,7 @@ public class AdminController {
             List<AdminUserSummary> users = adminService.getUsersFor((Long) userId);
             return ResponseEntity.ok(users);
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(createError(e.getMessage()));
+            return ApiErrors.badRequest(e);
         }
     }
 
@@ -87,20 +87,20 @@ public class AdminController {
             adminService.deactivateUser((Long) requesterId, userId);
             return ResponseEntity.ok(createMessage("Usuário desativado com sucesso"));
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(createError(e.getMessage()));
+            return ApiErrors.badRequest(e);
         }
     }
 
     @PostMapping("/users")
     public ResponseEntity<?> createUser(@RequestBody CreateUserRequest input, HttpServletRequest request) {
         try { Object id = request.getAttribute("userId"); if (!(id instanceof Long)) throw new Exception("Sessao invalida"); return ResponseEntity.ok(adminService.createUser((Long) id, input.name, input.email, input.password, input.role, input.subject, input.subjects, input.classes, input.className, input.enrollment)); }
-        catch (Exception e) { return ResponseEntity.badRequest().body(createError(e.getMessage())); }
+        catch (Exception e) { return ApiErrors.badRequest(e); }
     }
 
     @GetMapping("/classes")
     public ResponseEntity<?> getClasses(HttpServletRequest request) {
         try { return ResponseEntity.ok(schoolClassRepository.findByOrganizationKeyAndActiveTrueOrderByName(organization(request))); }
-        catch (Exception e) { return ResponseEntity.badRequest().body(createError(e.getMessage())); }
+        catch (Exception e) { return ApiErrors.badRequest(e); }
     }
 
     @PostMapping("/classes")
@@ -116,19 +116,19 @@ public class AdminController {
             value.setActive(true);
             return ResponseEntity.ok(schoolClassRepository.save(value));
         }
-        catch (Exception e) { return ResponseEntity.badRequest().body(createError(e.getMessage())); }
+        catch (Exception e) { return ApiErrors.badRequest(e); }
     }
 
     @DeleteMapping("/classes/{id}")
     public ResponseEntity<?> deleteClass(@PathVariable Long id, HttpServletRequest request) {
         try { SchoolClass value = schoolClassRepository.findById(id).orElseThrow(() -> new Exception("Turma nao encontrada")); if (!value.getOrganizationKey().equals(organization(request))) throw new Exception("Turma fora da organizacao"); value.setActive(false); schoolClassRepository.save(value); return ResponseEntity.ok().build(); }
-        catch (Exception e) { return ResponseEntity.badRequest().body(createError(e.getMessage())); }
+        catch (Exception e) { return ApiErrors.badRequest(e); }
     }
 
     @GetMapping("/subjects")
     public ResponseEntity<?> getSubjects(HttpServletRequest request) {
         try { return ResponseEntity.ok(subjectRepository.findByOrganizationKeyAndActiveTrueOrderByName(organization(request))); }
-        catch (Exception e) { return ResponseEntity.badRequest().body(createError(e.getMessage())); }
+        catch (Exception e) { return ApiErrors.badRequest(e); }
     }
 
     @PostMapping("/subjects")
@@ -143,13 +143,13 @@ public class AdminController {
             value.setActive(true);
             return ResponseEntity.ok(subjectRepository.save(value));
         }
-        catch (Exception e) { return ResponseEntity.badRequest().body(createError(e.getMessage())); }
+        catch (Exception e) { return ApiErrors.badRequest(e); }
     }
 
     @DeleteMapping("/subjects/{id}")
     public ResponseEntity<?> deleteSubject(@PathVariable Long id, HttpServletRequest request) {
         try { Subject value = subjectRepository.findById(id).orElseThrow(() -> new Exception("Materia nao encontrada")); if (!value.getOrganizationKey().equals(organization(request))) throw new Exception("Materia fora da organizacao"); value.setActive(false); subjectRepository.save(value); return ResponseEntity.ok().build(); }
-        catch (Exception e) { return ResponseEntity.badRequest().body(createError(e.getMessage())); }
+        catch (Exception e) { return ApiErrors.badRequest(e); }
     }
 
     private String organization(HttpServletRequest request) throws Exception {
@@ -161,12 +161,6 @@ public class AdminController {
     public static class ClassRequest { public String name; public Integer schoolYear; }
     public static class SubjectRequest { public String name; }
     public static class CreateUserRequest { public String name; public String email; public String password; public User.UserRole role; public String subject; public java.util.Set<String> subjects; public java.util.Set<String> classes; public String className; public String enrollment; }
-
-    private Map<String, String> createError(String message) {
-        Map<String, String> error = new HashMap<>();
-        error.put("error", message);
-        return error;
-    }
 
     private Map<String, String> createMessage(String message) {
         Map<String, String> msg = new HashMap<>();

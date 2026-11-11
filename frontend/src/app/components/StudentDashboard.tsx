@@ -30,15 +30,19 @@ import {
   AlertCircle,
 } from 'lucide-react';
 import { ChangePasswordModal } from './ChangePasswordModal';
-import { Activity, Question } from '../types/activity';
+import { parseOptions } from '../types/activity';
+import type { Activity, ApiActivity, Question } from '../types/activity';
+import type { AuthenticatedUser, Grade, StudentData } from '../../types';
 import { api } from '../../services/api';
 
 interface StudentDashboardProps {
-  user: any;
+  user: AuthenticatedUser;
   onLogout: () => void;
 }
 
 type Page = 'dashboard' | 'activities' | 'activity_detail';
+
+type GradeGroup = { subject: string; grades: Pick<Grade, 'period' | 'value' | 'weight'>[]; average: number; status: string };
 
 const statusMeta: Record<string, { label: string; color: string }> = {
   pending: { label: 'Pendente', color: 'bg-yellow-500' },
@@ -56,7 +60,7 @@ function ActivitySolver({
   onBack: () => void;
 }) {
   const [answers, setAnswers] = useState<Record<string, string>>(() =>
-    Object.fromEntries((activity as any).submission?.answers?.map((answer: any) => [String(answer.questionId), answer.answer ?? '']) ?? [])
+    Object.fromEntries(activity.submission?.answers?.map((answer) => [String(answer.questionId), answer.answer ?? '']) ?? [])
   );
   const [submitted, setSubmitted] = useState(activity.status !== 'pending');
 
@@ -139,7 +143,7 @@ function ActivitySolver({
                   <div className="space-y-2">
                     {q.options.map((opt) => {
                       const selected = answers[q.id] === opt.id;
-                      const correct = isGraded && (q as any).correctAnswer === opt.id;
+                      const correct = isGraded && q.correctAnswer === opt.id;
                       return (
                         <button
                           key={opt.id}
@@ -183,9 +187,9 @@ function ActivitySolver({
                     className="resize-none text-sm"
                   />
                 )}
-                {q.type === 'essay' && isGraded && (activity as any).submission?.answers?.find((answer: any) => String(answer.questionId) === q.id)?.teacherFeedback && (
+                {q.type === 'essay' && isGraded && activity.submission?.answers?.find((answer) => String(answer.questionId) === q.id)?.teacherFeedback && (
                   <p className="text-sm text-gray-600 bg-yellow-50 border border-yellow-200 rounded-md p-3">
-                    Feedback: {(activity as any).submission.answers.find((answer: any) => String(answer.questionId) === q.id).teacherFeedback}
+                    Feedback: {activity.submission?.answers?.find((answer) => String(answer.questionId) === q.id)?.teacherFeedback}
                   </p>
                 )}
               </div>
@@ -221,20 +225,15 @@ function ActivitiesPage({ onOpen }: { onOpen: (a: Activity) => void }) {
   const [error, setError] = useState('');
   const [filter, setFilter] = useState('all');
 
-  const parseOptions = (value: unknown) => {
-    if (typeof value !== 'string' || !value.trim()) return [];
-    try { return JSON.parse(value); } catch { return []; }
-  };
-
   useEffect(() => {
     api.getStudentActivities()
-      .then((items: any[]) => setActivities(items.map((activity) => ({
+      .then((items) => setActivities(items.map((activity) => ({
         id: String(activity.id), title: activity.title, subject: activity.subject,
         teacher: activity.teacherName, description: activity.description ?? '', dueDate: activity.dueDate,
-        status: activity.submission?.status?.toLowerCase() ?? 'pending',
+        status: activity.submission?.status === 'GRADED' ? 'graded' : activity.submission ? 'submitted' : 'pending',
         grade: activity.submission?.totalScore == null ? undefined : Number(activity.submission.totalScore),
         submission: activity.submission,
-        questions: (activity.questions ?? []).map((question: any) => ({
+        questions: (activity.questions ?? []).map((question) => ({
           id: String(question.id), type: question.type === 'ESSAY' ? 'essay' : 'multiple_choice',
           statement: question.prompt, placeholder: '',
           options: parseOptions(question.options),
@@ -363,38 +362,45 @@ export function StudentDashboard({ user, onLogout }: StudentDashboardProps) {
   const [page, setPage] = useState<Page>('dashboard');
   const [selectedActivity, setSelectedActivity] = useState<Activity | null>(null);
   const [showChangePwd, setShowChangePwd] = useState(false);
-  const [student, setStudent] = useState<any>(null);
-  const [grades, setGrades] = useState<any[]>([]);
-  const [activities, setActivities] = useState<any[]>([]);
+  const [student, setStudent] = useState<StudentData | null>(null);
+  const [grades, setGrades] = useState<GradeGroup[]>([]);
+  const [activities, setActivities] = useState<ApiActivity[]>([]);
+
+  const [loadError, setLoadError] = useState('');
 
   useEffect(() => {
-    const studentId = Number(user.id);
-    Promise.all([api.getStudentProfile(studentId), api.getStudentGrades(studentId), api.getStudentActivities()])
-      .then(([profile, loadedGrades, loadedActivities]: any[]) => {
+    let active = true;
+    api.getStudentProfile(user.id).then(async (profile) => {
+        const [loadedGrades, loadedActivities] = await Promise.all([
+          api.getStudentGrades(profile.id), api.getStudentActivities(),
+        ]);
+        if (!active) return;
         setStudent(profile);
-        const groupedGrades = loadedGrades.reduce((groups: any[], grade: any) => {
+        const groupedGrades = loadedGrades.reduce<Omit<GradeGroup, 'average' | 'status'>[]>((groups, grade) => {
           const group = groups.find((item) => item.subject === grade.subject);
           if (group) group.grades.push(grade);
           else groups.push({ subject: grade.subject, grades: [grade] });
           return groups;
         }, []);
-        loadedActivities.forEach((activity: any) => {
+        loadedActivities.forEach((activity) => {
           const submission = activity.submission;
           if (!submission || submission.status !== 'GRADED' || submission.totalScore == null) return;
-          const group = groupedGrades.find((item: any) => item.subject === activity.subject);
+          const group = groupedGrades.find((item) => item.subject === activity.subject);
           const activityGrade = { period: 'Atividades', value: Number(submission.totalScore), weight: 1 };
           if (group) group.grades.push(activityGrade);
           else groupedGrades.push({ subject: activity.subject, grades: [activityGrade] });
         });
-        setGrades(groupedGrades.map((group: any) => {
-          const average = group.grades.reduce((sum: number, grade: any) => sum + Number(grade.value), 0) / group.grades.length;
+        setGrades(groupedGrades.map((group) => {
+          const average = group.grades.reduce((sum, grade) => sum + Number(grade.value), 0) / group.grades.length;
           return { ...group, average, status: average > 6 ? 'approved' : average === 6 ? 'recovering' : 'failed' };
         }));
         setActivities(loadedActivities);
       })
-      .catch(() => { setStudent(null); });
+      .catch((error: unknown) => { if (active) setLoadError(error instanceof Error ? error.message : 'Não foi possível carregar o painel'); });
+    return () => { active = false; };
   }, [user.id]);
 
+  if (loadError) return <div role="alert" className="min-h-screen flex items-center justify-center gap-4"><p>{loadError}</p><Button onClick={onLogout}>Sair</Button></div>;
   if (!student) return <div className="min-h-screen flex items-center justify-center text-gray-400">Carregando dados do aluno...</div>;
 
   const overallAverage =

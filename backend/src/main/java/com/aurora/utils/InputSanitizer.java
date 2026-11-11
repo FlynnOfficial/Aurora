@@ -2,6 +2,7 @@ package com.aurora.utils;
 
 import org.springframework.stereotype.Component;
 
+import java.util.Locale;
 import java.util.regex.Pattern;
 
 @Component
@@ -43,19 +44,15 @@ public class InputSanitizer {
      */
     public String sanitizeEmail(String email) {
         if (email == null) {
-            return null;
+            throw new IllegalArgumentException("Informe o e-mail");
         }
 
-        email = email.trim().toLowerCase();
+        email = email.strip().toLowerCase(Locale.ROOT);
 
         // Regex para validação de email
         String emailPattern = "^[A-Za-z0-9+_.-]+@[A-Za-z0-9-]+(?:\\.[A-Za-z0-9-]+)+$";
-        if (!email.matches(emailPattern)) {
+        if (email.length() > 254 || !email.matches(emailPattern)) {
             throw new IllegalArgumentException("Email inválido");
-        }
-
-        if (SQL_INJECTION_PATTERN.matcher(email).find()) {
-            throw new IllegalArgumentException("Email contém caracteres suspeitos");
         }
 
         return email;

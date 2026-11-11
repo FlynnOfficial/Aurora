@@ -39,11 +39,13 @@ import {
   Calendar,
 } from 'lucide-react';
 import { ChangePasswordModal } from './ChangePasswordModal';
-import { Activity, Question } from '../types/activity';
+import { parseOptions } from '../types/activity';
+import type { ActivityWithSubmissions, Answer, ApiActivity, ApiQuestion, TeacherOverview } from '../types/activity';
+import type { AuthenticatedUser } from '../../types';
 import { api } from '../../services/api';
 
 interface TeacherDashboardProps {
-  user: any;
+  user: AuthenticatedUser;
   onLogout: () => void;
 }
 
@@ -77,38 +79,45 @@ function newQuestion(type: 'multiple_choice' | 'essay'): DraftQuestion {
   };
 }
 
-function parseOptions(options: unknown): { id: string; text: string }[] {
-  if (typeof options !== 'string' || !options.trim()) return [];
-  try {
-    const parsed = JSON.parse(options);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-}
-
-function automaticScore(question: any, answer: any): number | null {
-  if (question?.type !== 'MULTIPLE_CHOICE' || !question.correctAnswer) return null;
+function automaticScore(question: ApiQuestion | undefined, answer: Answer): number | null {
+  if (!question || question.type === 'ESSAY' || !question.correctAnswer) return null;
   return answer.answer === question.correctAnswer ? Number(question.points ?? 0) : 0;
 }
 
 // ── View Activities page ──────────────────────────────────────────────────────
 
-function MyActivitiesPage({ teacher }: { teacher: any }) {
-  const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [teacherActivities, setTeacherActivities] = useState<any[]>([]);
+interface TeacherDetails {
+  name: string;
+  subject: string;
+  subjects: string[];
+  classes: string[];
+}
+
+type TeacherActivity = Omit<ApiActivity, 'questions'> & {
+  teacher: string;
+  status: string;
+  questions: (Omit<ApiQuestion, 'options' | 'type'> & {
+    statement: string;
+    type: string;
+    options: ReturnType<typeof parseOptions>;
+  })[];
+};
+
+function MyActivitiesPage({ teacher }: { teacher: TeacherDetails }) {
+  const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [teacherActivities, setTeacherActivities] = useState<TeacherActivity[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [selectedSubject, setSelectedSubject] = useState(teacher.subjects?.[0] ?? teacher.subject ?? '');
 
   useEffect(() => {
     api.getTeacherActivities()
-      .then((items: any[]) => setTeacherActivities(items.map((activity) => ({
+      .then((items) => setTeacherActivities(items.map((activity) => ({
         ...activity,
         teacher: activity.teacherName,
         dueDate: activity.dueDate,
         status: activity.submission?.status?.toLowerCase() ?? 'pending',
-        questions: (activity.questions ?? []).map((question: any) => ({
+        questions: (activity.questions ?? []).map((question) => ({
             ...question,
           statement: question.prompt,
           type: question.type.toLowerCase(),
@@ -256,7 +265,7 @@ function MyActivitiesPage({ teacher }: { teacher: any }) {
 
 // ── Create Activity page ──────────────────────────────────────────────────────
 
-function CreateActivityPage({ teacher }: { teacher: any }) {
+function CreateActivityPage({ teacher }: { teacher: TeacherDetails }) {
   const [selectedClass, setSelectedClass] = useState(teacher.classes?.[0] ?? '');
   const [selectedSubject, setSelectedSubject] = useState(teacher.subjects?.[0] ?? teacher.subject ?? '');
   const [title, setTitle] = useState('');
@@ -617,20 +626,25 @@ function CreateActivityPage({ teacher }: { teacher: any }) {
 
 // ── Grade Activities page ──────────────────────────────────────────────
 
-function GradeActivitiesPage({ teacher }: { teacher: any }) {
+function GradeActivitiesPage({ teacher }: { teacher: TeacherDetails }) {
   const [selectedClass, setSelectedClass] = useState(teacher.classes?.[0] ?? '');
   const [selectedSubject, setSelectedSubject] = useState(teacher.subjects?.[0] ?? teacher.subject ?? '');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [openActivity, setOpenActivity] = useState<Activity | null>(null);
-  const [overview, setOverview] = useState<any>({ students: [], activities: [] });
+  const [openActivity, setOpenActivity] = useState<ActivityWithSubmissions | null>(null);
+  const [overview, setOverview] = useState<TeacherOverview>({ students: [], activities: [] });
   const [grades, setGrades] = useState<Record<string, Record<string, string>>>({});
   const [saved, setSaved] = useState<Record<string, boolean>>({});
+  const [loadError, setLoadError] = useState('');
+  const [saveError, setSaveError] = useState('');
 
-  useEffect(() => { api.getTeacherOverview().then(setOverview).catch(() => {}); }, []);
-  const studentsInClass: any[] = overview.students.filter((student: any) => student.className === selectedClass);
-  const classActivities: any[] = overview.activities.filter((activity: any) => {
+  useEffect(() => {
+    api.getTeacherOverview().then(setOverview).catch((error: unknown) => {
+      setLoadError(error instanceof Error ? error.message : 'Não foi possível carregar as entregas');
+    });
+  }, []);
+  const classActivities = overview.activities.filter((activity) => {
     if (activity.subject !== selectedSubject || activity.className !== selectedClass || !activity.submissions?.length) return false;
-    const allGraded = activity.submissions.every((submission: any) => submission.status === 'GRADED');
+    const allGraded = activity.submissions.every((submission) => submission.status === 'GRADED');
     return statusFilter === 'all' || (statusFilter === 'graded' ? allGraded : !allGraded);
   });
 
@@ -641,31 +655,39 @@ function GradeActivitiesPage({ teacher }: { teacher: any }) {
     }));
   };
 
-  const handleSaveGrades = async (activity: any) => {
+  const handleSaveGrades = async (activity: ActivityWithSubmissions) => {
     const submissions = activity.submissions ?? [];
+    setSaveError('');
     try {
-      await Promise.all(submissions.map((submission: any) => {
+      await Promise.all(submissions.map((submission) => {
         const submissionGrades = grades[submission.id] ?? {};
         return api.gradeSubmission(Number(submission.id), {
           feedback: '',
-          questions: (submission.answers ?? []).map((answer: any) => ({
+          questions: (submission.answers ?? []).map((answer) => ({
             questionId: answer.questionId,
             score: submissionGrades[answer.questionId] == null || submissionGrades[answer.questionId] === ''
-              ? answer.score ?? automaticScore(activity.questions?.find((question: any) => question.id === answer.questionId), answer) ?? 0
+              ? answer.score ?? automaticScore(activity.questions?.find((question) => question.id === answer.questionId), answer) ?? 0
               : Number(submissionGrades[answer.questionId]),
           })),
         });
       }));
       setSaved((prev) => ({ ...prev, [activity.id]: true }));
       setOpenActivity(null);
+      api.getTeacherOverview().then(setOverview).catch((error: unknown) => {
+        setLoadError(error instanceof Error ? error.message : 'Não foi possível atualizar as entregas');
+      });
     } catch (error) {
       setSaved((prev) => ({ ...prev, [activity.id]: false }));
+      setSaveError(error instanceof Error ? error.message : 'Não foi possível salvar as notas');
     }
   };
+
+  if (loadError) return <p role="alert" className="text-sm text-red-600">{loadError}</p>;
 
   if (openActivity) {
     return (
       <div className="space-y-6">
+        {saveError && <p role="alert" className="text-sm text-red-600">{saveError}</p>}
         <button
           onClick={() => setOpenActivity(null)}
           className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 transition-colors"
@@ -691,7 +713,7 @@ function GradeActivitiesPage({ teacher }: { teacher: any }) {
           </div>
         )}
 
-        {(openActivity as any).submissions?.map((submission: any) => (
+        {openActivity.submissions?.map((submission) => (
           <Card key={submission.id}>
             <CardHeader>
               <CardTitle className="text-base">{submission.studentName}</CardTitle>
@@ -700,8 +722,8 @@ function GradeActivitiesPage({ teacher }: { teacher: any }) {
             <CardContent className="space-y-4">
               {(() => {
                 const submissionGrades = grades[submission.id] ?? {};
-                return (submission.answers ?? []).map((answer: any, index: number) => {
-                const question = (openActivity as any).questions?.find((item: any) => item.id === answer.questionId);
+                return (submission.answers ?? []).map((answer, index: number) => {
+                const question = openActivity.questions?.find((item) => item.id === answer.questionId);
                 const options = parseOptions(question?.options);
                 const autoScore = automaticScore(question, answer);
                 return (
@@ -716,7 +738,7 @@ function GradeActivitiesPage({ teacher }: { teacher: any }) {
                             {answer.answer === option.id && <Badge className="ml-2 bg-blue-600">Resposta do aluno</Badge>}
                           </div>
                         ))}
-                        {autoScore !== null && <p className="text-xs text-gray-500">Resposta correta: alternativa {question.correctAnswer.toUpperCase()} | Nota automática: {autoScore}</p>}
+                        {autoScore !== null && <p className="text-xs text-gray-500">Resposta correta: alternativa {question?.correctAnswer?.toUpperCase()} | Nota automática: {autoScore}</p>}
                       </div>
                     ) : (
                       <div className="rounded-md bg-gray-50 px-3 py-2 text-sm whitespace-pre-wrap">
@@ -806,7 +828,7 @@ function GradeActivitiesPage({ teacher }: { teacher: any }) {
           {classActivities.map((activity) => {
             const submittedCount = activity.submissions?.length ?? 0;
             const isSaved = saved[activity.id];
-            const allGraded = submittedCount > 0 && activity.submissions.every((submission: any) => submission.status === 'GRADED');
+            const allGraded = submittedCount > 0 && activity.submissions.every((submission) => submission.status === 'GRADED');
             return (
               <Card
                 key={activity.id}
@@ -852,31 +874,44 @@ function GradeActivitiesPage({ teacher }: { teacher: any }) {
 export function TeacherDashboard({ user, onLogout }: TeacherDashboardProps) {
   const [page, setPage] = useState<Page>('dashboard');
   const [showChangePwd, setShowChangePwd] = useState(false);
-  const [teacher, setTeacher] = useState<any>(null);
-  const [overview, setOverview] = useState<any>({ students: [], activities: [] });
+  const [teacher, setTeacher] = useState<TeacherDetails | null>(null);
+  const [overview, setOverview] = useState<TeacherOverview>({ students: [], activities: [] });
   const [selectedDashboardSubject, setSelectedDashboardSubject] = useState('');
+  const [profileError, setProfileError] = useState('');
+  const [overviewError, setOverviewError] = useState('');
 
   useEffect(() => {
-    api.getTeacherProfile(Number(user.id)).then((profile: any) => setTeacher({
+    api.getTeacherProfile(Number(user.id)).then((profile) => setTeacher({
       ...profile,
       name: profile.user?.name ?? user.name,
-      email: profile.user?.email ?? user.email,
       subject: profile.subject,
       classes: profile.classes ?? [],
-      subjects: profile.subjects?.length ? profile.subjects.map((subject: any) => typeof subject === 'string' ? subject : subject.name) : (profile.subject ? [profile.subject] : []),
-    })).catch(() => setTeacher({ name: user.name, subject: '', classes: [] }));
-  }, [user.id, user.name, user.email]);
-  useEffect(() => { if (teacher && page === 'dashboard') api.getTeacherOverview().then(setOverview).catch(() => {}); }, [teacher, page]);
+      subjects: profile.subjects?.length ? profile.subjects.map((subject) => typeof subject === 'string' ? subject : subject.name) : (profile.subject ? [profile.subject] : []),
+    })).catch((error: unknown) => {
+      setProfileError(error instanceof Error ? error.message : 'Não foi possível carregar o perfil');
+    });
+  }, [user.id, user.name]);
+  useEffect(() => {
+    if (!teacher || page !== 'dashboard') return;
+    api.getTeacherOverview().then((data) => {
+      setOverview(data);
+      setOverviewError('');
+    }).catch((error: unknown) => {
+      setOverviewError(error instanceof Error ? error.message : 'Não foi possível carregar o painel');
+    });
+  }, [teacher, page]);
 
+  if (profileError) return <div role="alert" className="min-h-screen flex items-center justify-center gap-4"><p>{profileError}</p><Button onClick={onLogout}>Sair</Button></div>;
   if (!teacher) return <div className="min-h-screen flex items-center justify-center text-gray-400">Carregando perfil...</div>;
   const subjects: string[] = teacher.subjects ?? [teacher.subject].filter(Boolean);
   const dashboardSubject = selectedDashboardSubject || subjects[0] || '';
-  const studentsInClasses: any[] = overview.students;
-  const toCorrectCount = overview.activities.reduce((count: number, activity: any) => count + (activity.submissions?.filter((submission: any) => submission.status === 'SUBMITTED').length ?? 0), 0);
+  const studentsInClasses = overview.students;
+  const toCorrectCount = overview.activities.reduce((count: number, activity) => count + (activity.submissions?.filter((submission) => submission.status === 'SUBMITTED').length ?? 0), 0);
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       {showChangePwd && <ChangePasswordModal onClose={() => setShowChangePwd(false)} />}
+      {page === 'dashboard' && overviewError && <p role="alert" className="bg-red-50 p-3 text-center text-sm text-red-600">{overviewError}</p>}
 
       {/* Header */}
       <header className="bg-white border-b shrink-0">
@@ -917,9 +952,9 @@ export function TeacherDashboard({ user, onLogout }: TeacherDashboardProps) {
 
           {(
             [
-              { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-              { id: 'create', label: 'Criar Atividade', icon: PlusCircle },
-              { id: 'myActivities', label: 'Minhas Atividades', icon: FileText },
+              { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, badge: 0 },
+              { id: 'create', label: 'Criar Atividade', icon: PlusCircle, badge: 0 },
+              { id: 'myActivities', label: 'Minhas Atividades', icon: FileText, badge: 0 },
               { id: 'grade', label: 'Corrigir Atividades', icon: ClipboardCheck, badge: toCorrectCount },
             ] as const
           ).map(({ id, label, icon: Icon, badge }) => (
@@ -1024,9 +1059,9 @@ export function TeacherDashboard({ user, onLogout }: TeacherDashboardProps) {
                               {studentsInClasses
                                 .filter((s) => s.className === cls)
                                 .map((student) => {
-                                  const subjectActivities = overview.activities.filter((activity: any) => activity.subject === dashboardSubject && activity.className === cls);
-                                  const submissions = subjectActivities.flatMap((activity: any) => activity.submissions ?? []).filter((submission: any) => submission.studentName === student.name && submission.status === 'GRADED' && submission.totalScore != null);
-                                  const average = submissions.length ? submissions.reduce((sum: number, submission: any) => sum + Number(submission.totalScore), 0) / submissions.length : null;
+                                  const subjectActivities = overview.activities.filter((activity) => activity.subject === dashboardSubject && activity.className === cls);
+                                  const submissions = subjectActivities.flatMap((activity) => activity.submissions ?? []).filter((submission) => submission.studentId === student.id && submission.status === 'GRADED' && submission.totalScore != null);
+                                  const average = submissions.length ? submissions.reduce((sum: number, submission) => sum + Number(submission.totalScore), 0) / submissions.length : null;
                                   return (
                                     <TableRow key={student.id}>
                                       <TableCell>

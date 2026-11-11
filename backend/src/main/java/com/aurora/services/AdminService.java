@@ -42,8 +42,9 @@ public class AdminService {
         return registrationRepository.findAll();
     }
 
+    @Transactional(rollbackFor = Exception.class)
     public Registration approveRegistration(Long registrationId) throws Exception {
-        Registration registration = registrationRepository.findById(registrationId)
+        Registration registration = registrationRepository.findForReview(registrationId)
                 .orElseThrow(() -> new Exception("Registro não encontrado"));
 
         if (registration.getStatus() != Registration.Status.PENDING) {
@@ -67,10 +68,14 @@ public class AdminService {
         return registrationRepository.save(registration);
     }
 
+    @Transactional(rollbackFor = Exception.class)
     public Registration rejectRegistration(Long registrationId) throws Exception {
-        Registration registration = registrationRepository.findById(registrationId)
+        Registration registration = registrationRepository.findForReview(registrationId)
                 .orElseThrow(() -> new Exception("Registro não encontrado"));
 
+        if (registration.getStatus() != Registration.Status.PENDING) {
+            throw new Exception("Esta solicitacao ja foi analisada");
+        }
         registration.setStatus(Registration.Status.REJECTED);
         return registrationRepository.save(registration);
     }
@@ -85,7 +90,7 @@ public class AdminService {
         return users.stream().map(this::summarizeUser).toList();
     }
 
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public AdminUserSummary createUser(Long requesterId, String name, String email, String password, User.UserRole role, String subject, Set<String> subjects, Set<String> classes, String className, String enrollment) throws Exception {
         User requester = userRepository.findById(requesterId).orElseThrow(() -> new Exception("Administrador nao encontrado"));
         if (requester.getRole() != User.UserRole.ADMIN && requester.getRole() != User.UserRole.SUPER_ADMIN) throw new Exception("Sem permissao");
@@ -157,9 +162,10 @@ public class AdminService {
                 .orElseThrow(() -> new Exception("Administrador nao encontrado"));
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new Exception("Usuário não encontrado"));
-        if (requester.getRole() != User.UserRole.SUPER_ADMIN &&
-                !requester.getOrganizationKey().equals(user.getOrganizationKey())) {
-            throw new Exception("Usuario fora da organizacao do administrador");
+        if (requesterId.equals(userId) || user.getRole() == User.UserRole.SUPER_ADMIN
+                || (requester.getRole() != User.UserRole.SUPER_ADMIN
+                    && !requester.getOrganizationKey().equals(user.getOrganizationKey()))) {
+            throw new Exception("Sem permissão para desativar este usuário");
         }
         user.setActive(false);
         userRepository.save(user);

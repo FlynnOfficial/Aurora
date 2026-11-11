@@ -20,12 +20,13 @@ public class TeacherController {
     private final TeacherService teacherService;
 
     @PostMapping
-    public ResponseEntity<?> createTeacher(@RequestBody CreateTeacherRequest request) {
+    public ResponseEntity<?> createTeacher(@RequestBody CreateTeacherRequest request, HttpServletRequest httpRequest) {
         try {
+            teacherService.authorizeUserAccess(userId(httpRequest), role(httpRequest), request.userId);
             Teacher teacher = teacherService.createTeacher(request.userId, request.subject, request.classes);
             return ResponseEntity.ok(teacher);
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(createError(e.getMessage()));
+            return ApiErrors.badRequest(e);
         }
     }
 
@@ -37,7 +38,7 @@ public class TeacherController {
             return teacher.map(ResponseEntity::ok)
                     .orElse(ResponseEntity.notFound().build());
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(createError(e.getMessage()));
+            return ApiErrors.badRequest(e);
         }
     }
 
@@ -45,10 +46,10 @@ public class TeacherController {
     public ResponseEntity<?> getTeachersBySubject(@PathVariable String subject, HttpServletRequest request) {
         try {
             requireRole(request, "ADMIN", "SUPER_ADMIN");
-            List<Teacher> teachers = teacherService.getTeachersBySubject(subject);
+            List<Teacher> teachers = teacherService.getTeachersBySubject(userId(request), subject);
             return ResponseEntity.ok(teachers);
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(createError(e.getMessage()));
+            return ApiErrors.badRequest(e);
         }
     }
 
@@ -56,10 +57,10 @@ public class TeacherController {
     public ResponseEntity<?> getAllTeachers(HttpServletRequest request) {
         try {
             requireRole(request, "ADMIN", "SUPER_ADMIN");
-            List<Teacher> teachers = teacherService.getAllTeachers();
+            List<Teacher> teachers = teacherService.getAllTeachers(userId(request));
             return ResponseEntity.ok(teachers);
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(createError(e.getMessage()));
+            return ApiErrors.badRequest(e);
         }
     }
 
@@ -67,10 +68,11 @@ public class TeacherController {
     public ResponseEntity<?> updateTeacher(@PathVariable Long teacherId, @RequestBody Teacher updates, HttpServletRequest request) {
         try {
             requireRole(request, "ADMIN", "SUPER_ADMIN");
+            teacherService.authorizeProfileAccess(userId(request), teacherId);
             Teacher updated = teacherService.updateTeacher(teacherId, updates);
             return ResponseEntity.ok(updated);
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(createError(e.getMessage()));
+            return ApiErrors.badRequest(e);
         }
     }
 
@@ -78,17 +80,12 @@ public class TeacherController {
     public ResponseEntity<?> deleteTeacher(@PathVariable Long teacherId, HttpServletRequest request) {
         try {
             requireRole(request, "ADMIN", "SUPER_ADMIN");
+            teacherService.authorizeProfileAccess(userId(request), teacherId);
             teacherService.deleteTeacher(teacherId);
             return ResponseEntity.ok(createMessage("Professor deletado com sucesso"));
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(createError(e.getMessage()));
+            return ApiErrors.badRequest(e);
         }
-    }
-
-    private Map<String, String> createError(String message) {
-        Map<String, String> error = new HashMap<>();
-        error.put("error", message);
-        return error;
     }
 
     private Map<String, String> createMessage(String message) {

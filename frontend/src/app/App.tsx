@@ -21,43 +21,33 @@ export default function App() {
   const [screen, setScreen] = useState<Screen>('login');
   const [user, setUser] = useState<AuthenticatedUser | null>(null);
   const [userType, setUserType] = useState<UserType>(null);
+  const [initializing, setInitializing] = useState(true);
 
   useEffect(() => {
-    api.getCurrentUser().then((response) => {
-      const user: AuthenticatedUser = { id: response.userId, name: response.name, email: response.email, role: response.role };
-      setUser(user);
-      setUserType(response.role.toLowerCase() as UserRole);
-    }).catch(() => undefined);
-  }, []);
-
-  useEffect(() => {
-    const blockInspectionShortcuts = (event: KeyboardEvent) => {
-      const key = event.key.toLowerCase();
-      const blocked = event.key === 'F12' ||
-        (event.ctrlKey && event.shiftKey && ['i', 'j', 'c'].includes(key)) ||
-        (event.metaKey && event.altKey && ['i', 'j', 'c'].includes(key));
-
-      if (blocked) {
-        event.preventDefault();
-        event.stopPropagation();
-      }
+    let active = true;
+    const endSession = () => {
+      setUser(null);
+      setUserType(null);
+      setScreen('login');
     };
 
-    const blockContextMenu = (event: MouseEvent) => event.preventDefault();
-
-    document.addEventListener('keydown', blockInspectionShortcuts, true);
-    document.addEventListener('contextmenu', blockContextMenu);
+    localStorage.removeItem('user');
+    window.addEventListener('aurora:session-expired', endSession);
+    api.getCurrentUser().then((response) => {
+      if (!active) return;
+      setUser({ id: response.userId, name: response.name, email: response.email, role: response.role });
+      setUserType(response.role.toLowerCase() as UserRole);
+    }).catch(() => undefined).finally(() => { if (active) setInitializing(false); });
 
     return () => {
-      document.removeEventListener('keydown', blockInspectionShortcuts, true);
-      document.removeEventListener('contextmenu', blockContextMenu);
+      active = false;
+      window.removeEventListener('aurora:session-expired', endSession);
     };
   }, []);
 
   const handleLogin = (userData: AuthenticatedUser, type: UserRole) => {
     setUser(userData);
     setUserType(type);
-    localStorage.setItem('user', JSON.stringify({ user: userData, userType: type }));
   };
 
   const handleLogout = () => {
@@ -66,6 +56,8 @@ export default function App() {
     setScreen('login');
     api.logout().catch(() => undefined);
   };
+
+  if (initializing) return <LoadingScreen />;
 
   if (screen === 'register') {
     return <Suspense fallback={<LoadingScreen />}><Register onBack={() => setScreen('login')} /></Suspense>;
@@ -82,7 +74,7 @@ export default function App() {
       {userType === 'teacher' && <TeacherDashboard user={user} onLogout={handleLogout} />}
       {userType === 'admin' && <AdminDashboard user={user} onLogout={handleLogout} />}
       {userType === 'super_admin' && <SuperAdminDashboard user={user} onLogout={handleLogout} />}
-      {userType !== 'super_admin' && userType && <SupportChat user={user} userType={userType} />}
+      {userType !== 'super_admin' && userType && <SupportChat key={user.id} user={user} userType={userType} />}
       </>
     </Suspense>
   );

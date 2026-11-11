@@ -2,3 +2,9 @@ target
 logs
 .idea
 *.iml
+.env
+.env.*
+*.pem
+*.key
+*.crt
+*.cer

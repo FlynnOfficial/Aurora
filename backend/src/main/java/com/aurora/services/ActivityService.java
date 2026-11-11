@@ -24,8 +24,8 @@ public class ActivityService {
     private final StudentRepository studentRepository;
     private final UserRepository userRepository;
 
-    @Transactional
-    public Activity create(Long userId, CreateActivityRequest request) throws Exception {
+    @Transactional(rollbackFor = Exception.class)
+    public Map<String, Object> create(Long userId, CreateActivityRequest request) throws Exception {
         Teacher teacher = teacherRepository.findByUser(userRepository.findById(userId)
                 .orElseThrow(() -> new Exception("Usuario nao encontrado")))
                 .orElseThrow(() -> new Exception("Professor nao encontrado"));
@@ -51,6 +51,12 @@ public class ActivityService {
         if (request.subject == null || !teacherSubjects.contains(request.subject.trim())) {
             throw new Exception("Materia nao lecionada pelo professor");
         }
+        if (request.className == null || teacher.getClasses() == null || !teacher.getClasses().contains(request.className.trim())) {
+            throw new Exception("Turma não atribuída ao professor");
+        }
+        if (request.title == null || request.title.isBlank()) {
+            throw new Exception("Informe o título da atividade");
+        }
 
         Activity activity = new Activity();
         activity.setTitle(request.title.trim());
@@ -65,6 +71,9 @@ public class ActivityService {
 
         int position = 1;
         for (QuestionRequest input : request.questions) {
+            if (input.type == null || input.prompt == null || input.prompt.isBlank()) {
+                throw new Exception("Informe o tipo e o enunciado de cada questão");
+            }
             if (input.points == null || input.points.compareTo(BigDecimal.ZERO) <= 0) {
                 throw new Exception("Toda questao precisa ter uma pontuacao positiva");
             }
@@ -79,7 +88,7 @@ public class ActivityService {
             questionRepository.save(question);
             activity.getQuestionItems().add(question);
         }
-        return activity;
+        return activityView(activity, null, true);
     }
 
     @Transactional(readOnly = true)
@@ -123,9 +132,8 @@ public class ActivityService {
         Student student = studentRepository.findByUser(userRepository.findById(userId)
                 .orElseThrow(() -> new Exception("Usuario nao encontrado")))
                 .orElseThrow(() -> new Exception("Aluno nao encontrado"));
-        List<Activity> activities = activityRepository.findByOrganizationKeyOrderByCreatedAtDesc(student.getUser().getOrganizationKey()).stream()
-                .filter(activity -> activity.getClassName().equals(student.getClassName()))
-            .toList();
+        List<Activity> activities = activityRepository.findByOrganizationKeyAndClassNameOrderByCreatedAtDesc(
+                student.getUser().getOrganizationKey(), student.getClassName());
         Map<Long, Submission> submissionsByActivity = submissionRepository.findByStudentAndActivityIn(student, activities).stream()
             .collect(java.util.stream.Collectors.toMap(submission -> submission.getActivity().getId(), submission -> submission));
         return activities.stream()
@@ -151,7 +159,7 @@ public class ActivityService {
         return result;
     }
 
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public Map<String, Object> submit(Long userId, Long activityId, List<AnswerRequest> answers) throws Exception {
         Student student = studentRepository.findByUser(userRepository.findById(userId)
                 .orElseThrow(() -> new Exception("Usuario nao encontrado")))
@@ -184,7 +192,7 @@ public class ActivityService {
             answer.setSubmission(submission);
             answer.setQuestion(question);
             answer.setAnswer(input == null ? null : input.answer);
-            if (isMultipleChoice(question)) answer.setScore(automaticScore(question, answer.getAnswer()));
+            if (isAutomaticallyGraded(question)) answer.setScore(automaticScore(question, answer.getAnswer()));
             answerRepository.save(answer);
         }
         updateSubmissionScore(submission);
@@ -198,7 +206,7 @@ public class ActivityService {
                 .map(submission -> submissionView(submission, true)).toList();
     }
 
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public Map<String, Object> grade(Long userId, Long submissionId, GradeRequest request) throws Exception {
         Submission submission = submissionRepository.findById(submissionId)
                 .orElseThrow(() -> new Exception("Entrega nao encontrada"));
@@ -210,7 +218,7 @@ public class ActivityService {
         for (Answer answer : answers.values()) {
             ActivityQuestion question = answer.getQuestion();
             BigDecimal score;
-            if (isMultipleChoice(question)) {
+            if (isAutomaticallyGraded(question)) {
                 score = automaticScore(question, answer.getAnswer());
             } else {
                 QuestionGrade input = requestedGrades.get(question.getId());
@@ -227,8 +235,9 @@ public class ActivityService {
         return submissionView(submissionRepository.save(submission), true);
     }
 
-    private boolean isMultipleChoice(ActivityQuestion question) {
-        return question.getType() == ActivityQuestion.QuestionType.MULTIPLE_CHOICE;
+    private boolean isAutomaticallyGraded(ActivityQuestion question) {
+        return question.getType() == ActivityQuestion.QuestionType.MULTIPLE_CHOICE
+                || question.getType() == ActivityQuestion.QuestionType.TRUE_FALSE;
     }
 
     private BigDecimal automaticScore(ActivityQuestion question, String answer) {
@@ -283,7 +292,9 @@ public class ActivityService {
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("id", submission.getId()); result.put("status", submission.getStatus()); result.put("submittedAt", submission.getSubmittedAt());
         result.put("gradedAt", submission.getGradedAt()); result.put("totalScore", submission.getTotalScore());
-        result.put("teacherFeedback", submission.getTeacherFeedback()); result.put("studentName", submission.getStudent().getUser().getName());
+        result.put("teacherFeedback", submission.getTeacherFeedback());
+        result.put("studentName", submission.getStudent().getUser().getName());
+        result.put("studentId", submission.getStudent().getId());
         if (includeAnswers) {
             result.put("answers", answerRepository.findBySubmission(submission).stream().map(answer -> {
                 Map<String, Object> value = new LinkedHashMap<>(); value.put("questionId", answer.getQuestion().getId());

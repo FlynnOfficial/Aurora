@@ -3,11 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from './ui/
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import {
   ArrowLeft,
-  User,
-  Building2,
   Eye,
   EyeOff,
   CheckCircle,
@@ -18,35 +15,6 @@ import { api } from '../../services/api';
 interface RegisterProps {
   onBack: () => void;
 }
-
-// ── Mask helpers ──────────────────────────────────────────────────────────────
-
-function maskCPF(v: string) {
-  return v
-    .replace(/\D/g, '')
-    .slice(0, 11)
-    .replace(/(\d{3})(\d)/, '$1.$2')
-    .replace(/(\d{3})(\d)/, '$1.$2')
-    .replace(/(\d{3})(\d{1,2})$/, '$1-$2');
-}
-
-function maskCNPJ(v: string) {
-  return v
-    .replace(/\D/g, '')
-    .slice(0, 14)
-    .replace(/(\d{2})(\d)/, '$1.$2')
-    .replace(/(\d{3})(\d)/, '$1.$2')
-    .replace(/(\d{3})(\d)/, '$1/$2')
-    .replace(/(\d{4})(\d{1,2})$/, '$1-$2');
-}
-
-function maskPhone(v: string) {
-  const d = v.replace(/\D/g, '').slice(0, 11);
-  if (d.length <= 10) return d.replace(/(\d{2})(\d{4})(\d{0,4})/, '($1) $2-$3').replace(/-$/, '');
-  return d.replace(/(\d{2})(\d{5})(\d{0,4})/, '($1) $2-$3').replace(/-$/, '');
-}
-
-// ── Password strength ─────────────────────────────────────────────────────────
 
 interface PasswordRule {
   label: string;

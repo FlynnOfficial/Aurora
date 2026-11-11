@@ -1,14 +1,18 @@
 package com.aurora.models;
 
 import jakarta.persistence.*;
-import lombok.*;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
-import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
+import java.time.Instant;
+import java.util.UUID;
 
 @Entity
-@Table(name = "support_chats")
+@Table(name = "support_chats", uniqueConstraints = {
+        @UniqueConstraint(name = "uq_support_chat_participants", columnNames = {"requester_id", "recipient_id"}),
+        @UniqueConstraint(name = "uq_support_chat_request", columnNames = {"requester_id", "request_id"})
+})
 @Getter
 @Setter
 @NoArgsConstructor
@@ -21,6 +25,13 @@ public class SupportChat {
     @JoinColumn(name = "requester_id", nullable = false)
     private User requester;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "recipient_id")
+    private User recipient;
+
+    @Column(name = "request_id")
+    private UUID requestId;
+
     @Column(name = "organization_key", nullable = false)
     private String organizationKey;
 
@@ -29,18 +40,14 @@ public class SupportChat {
     private Status status = Status.OPEN;
 
     @Column(name = "created_at", nullable = false)
-    private LocalDateTime createdAt;
+    private Instant createdAt;
 
     @Column(name = "closed_at")
-    private LocalDateTime closedAt;
-
-    @OneToMany(mappedBy = "chat", cascade = CascadeType.ALL, orphanRemoval = true)
-    @OrderBy("createdAt ASC")
-    private List<SupportMessage> messages = new ArrayList<>();
+    private Instant closedAt;
 
     @PrePersist
     void onCreate() {
-        if (createdAt == null) createdAt = LocalDateTime.now();
+        createdAt = Instant.now();
     }
 
     public enum Status { OPEN, CLOSED }

@@ -23,6 +23,7 @@ public class StudentService {
     public Student createStudent(Long userId, String className, String enrollment) throws Exception {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new Exception("Usuário não encontrado"));
+        if (user.getRole() != User.UserRole.STUDENT) throw new Exception("Perfil de aluno inválido");
 
         if (studentRepository.findByEnrollment(enrollment).isPresent()) {
             throw new Exception("Matrícula já existe");
@@ -30,6 +31,7 @@ public class StudentService {
 
         Student student = Student.builder()
                 .user(user)
+                .organizationKey(user.getOrganizationKey())
                 .className(className)
                 .enrollment(enrollment)
                 .active(true)
@@ -43,8 +45,11 @@ public class StudentService {
         return user.flatMap(studentRepository::findByUser);
     }
 
-    public List<Student> getStudentsByClass(String className) {
-        return studentRepository.findByClassName(className);
+    public List<Student> getStudentsByClass(Long requesterId, String className) throws Exception {
+        User requester = userRepository.findById(requesterId)
+                .orElseThrow(() -> new Exception("Usuário não encontrado"));
+        return studentRepository.findByOrganizationKeyAndClassNameInAndActiveTrue(
+                requester.getOrganizationKey(), java.util.Set.of(className));
     }
 
     public List<Grade> getStudentGrades(Long studentId) {

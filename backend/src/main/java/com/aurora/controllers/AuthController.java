@@ -3,7 +3,6 @@ package com.aurora.controllers;
 import com.aurora.models.User;
 import com.aurora.services.AuthService;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
@@ -19,7 +18,6 @@ import java.util.Map;
 @RestController
 @RequestMapping("/auth")
 @RequiredArgsConstructor
-@Slf4j
 @SuppressWarnings("null")
 public class AuthController {
     private final AuthService authService;
@@ -57,10 +55,7 @@ public class AuthController {
                     .header(HttpHeaders.SET_COOKIE, sessionCookie("aurora_refresh", refreshToken, 86400).toString())
                     .body(response);
         } catch (Exception e) {
-            log.error("Erro no login: {}", e.getMessage());
-            Map<String, String> error = new HashMap<>();
-            error.put("error", e.getMessage());
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
+            return ApiErrors.response(HttpStatus.UNAUTHORIZED, e);
         }
     }
 
@@ -75,10 +70,7 @@ public class AuthController {
                     .header(HttpHeaders.SET_COOKIE, sessionCookie("aurora_access", accessToken, 3600).toString())
                     .body(response);
         } catch (Exception e) {
-            log.error("Erro ao renovar token: {}", e.getMessage());
-            Map<String, String> error = new HashMap<>();
-            error.put("error", e.getMessage());
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
+            return ApiErrors.response(HttpStatus.UNAUTHORIZED, e);
         }
     }
 
@@ -118,10 +110,7 @@ public class AuthController {
             response.put("message", "Solicitacao enviada. Um Super Admin precisa aprovar o cadastro antes do primeiro acesso.");
             return ResponseEntity.status(HttpStatus.CREATED).body(response);
         } catch (Exception e) {
-            log.error("Erro no registro: {}", e.getMessage());
-            Map<String, String> error = new HashMap<>();
-            error.put("error", e.getMessage());
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+            return ApiErrors.badRequest(e);
         }
     }
 
@@ -144,10 +133,7 @@ public class AuthController {
             response.put("message", "Senha alterada com sucesso");
             return ResponseEntity.ok(response);
         } catch (Exception e) {
-            log.error("Erro ao alterar senha: {}", e.getMessage());
-            Map<String, String> error = new HashMap<>();
-            error.put("error", e.getMessage());
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+            return ApiErrors.badRequest(e);
         }
     }
 

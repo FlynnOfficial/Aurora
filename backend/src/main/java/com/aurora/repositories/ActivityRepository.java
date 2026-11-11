@@ -10,6 +10,6 @@ import java.util.List;
 public interface ActivityRepository extends JpaRepository<Activity, Long> {
     List<Activity> findByTeacher(Teacher teacher);
     List<Activity> findBySubject(String subject);
-    List<Activity> findByOrganizationKeyOrderByCreatedAtDesc(String organizationKey);
+    List<Activity> findByOrganizationKeyAndClassNameOrderByCreatedAtDesc(String organizationKey, String className);
     List<Activity> findByTeacherOrderByCreatedAtDesc(Teacher teacher);
 }

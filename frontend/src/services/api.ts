@@ -1,6 +1,21 @@
-import { LoginResponse } from '../types';
+import type { Grade, LoginResponse, StudentData } from '../types';
+import type { ApiActivity, TeacherOverview } from '../app/types/activity';
+import type { AdminUser, Registration, SchoolClass, Subject, TeacherProfile } from '../app/types/school';
+import type { Chat, ChatContact, ChatMessage, MessageDraft } from '../app/types/chat';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '/api';
+
+let refreshInFlight: Promise<unknown> | undefined;
+
+function refreshSession() {
+  refreshInFlight ??= request('/auth/refresh-token', { method: 'POST' }, false)
+    .catch((error: unknown) => {
+      window.dispatchEvent(new Event('aurora:session-expired'));
+      throw error;
+    })
+    .finally(() => { refreshInFlight = undefined; });
+  return refreshInFlight;
+}
 
 async function request<T>(path: string, init: RequestInit = {}, retryOnUnauthorized = true): Promise<T> {
   const headers = new Headers(init.headers);
@@ -11,8 +26,8 @@ async function request<T>(path: string, init: RequestInit = {}, retryOnUnauthori
   const body = contentType.includes('application/json') ? await response.json() : null;
 
   if (!response.ok) {
-    if (response.status === 401 && retryOnUnauthorized && !path.startsWith('/auth/')) {
-      await request('/auth/refresh-token', { method: 'POST' }, false);
+    if (response.status === 401 && retryOnUnauthorized && (path === '/auth/me' || !path.startsWith('/auth/'))) {
+      await refreshSession();
       return request<T>(path, init, false);
     }
     throw new Error(body?.error ?? `Erro HTTP ${response.status}`);
@@ -29,7 +44,6 @@ export const api = {
   }),
 
   getCurrentUser: () => request<LoginResponse>('/auth/me'),
-  refreshSession: () => request('/auth/refresh-token', { method: 'POST' }),
   logout: () => request('/auth/logout', { method: 'POST' }, false),
 
   register: (email: string, password: string, name: string, organizationKey: string) => request('/auth/register', {
@@ -43,17 +57,17 @@ export const api = {
     }),
 
   // Student endpoints
-  getStudentProfile: (userId: number) => request(`/students/${userId}`),
+  getStudentProfile: (userId: number) => request<StudentData>(`/students/${userId}`),
 
-  getStudentGrades: (studentId: number) => request(`/grades/student/${studentId}`),
+  getStudentGrades: (studentId: number) => request<Grade[]>(`/grades/student/${studentId}`),
 
   getStudentAverage: (studentId: number) => request(`/grades/student/${studentId}/average`),
 
   // Teacher endpoints
-  getTeacherProfile: (userId: number) => request(`/teachers/${userId}`),
+  getTeacherProfile: (userId: number) => request<TeacherProfile>(`/teachers/${userId}`),
 
-  getTeacherActivities: () => request('/activities/teacher'),
-  getTeacherOverview: () => request('/activities/teacher/overview'),
+  getTeacherActivities: () => request<ApiActivity[]>('/activities/teacher'),
+  getTeacherOverview: () => request<TeacherOverview>('/activities/teacher/overview'),
 
   createActivity: (activity: unknown) => request('/activities', {
     method: 'POST',
@@ -67,7 +81,7 @@ export const api = {
     body: JSON.stringify(grade),
   }),
 
-  getStudentActivities: () => request('/activities/student'),
+  getStudentActivities: () => request<ApiActivity[]>('/activities/student'),
 
   submitActivity: (activityId: number, answers: unknown[]) => request(`/activities/${activityId}/submit`, {
     method: 'POST',
@@ -77,30 +91,33 @@ export const api = {
   // Admin endpoints
   getPendingRegistrations: () => request('/admin/registrations/pending'),
 
-  getRegistrations: () => request('/admin/registrations'),
+  getRegistrations: () => request<Registration[]>('/admin/registrations'),
 
   approveRegistration: (registrationId: number) => request(`/admin/registrations/${registrationId}/approve`, { method: 'PUT' }),
 
   rejectRegistration: (registrationId: number) => request(`/admin/registrations/${registrationId}/reject`, { method: 'PUT' }),
-  getAdminUsers: () => request('/admin/users'),
+  getAdminUsers: () => request<AdminUser[]>('/admin/users'),
   deactivateUser: (userId: number) => request(`/admin/users/${userId}`, { method: 'DELETE' }),
-  createAdminUser: (input: unknown) => request('/admin/users', { method: 'POST', body: JSON.stringify(input) }),
-  getClasses: () => request('/admin/classes'),
-  createClass: (name: string, schoolYear: number) => request('/admin/classes', { method: 'POST', body: JSON.stringify({ name, schoolYear }) }),
+  createAdminUser: (input: unknown) => request<AdminUser>('/admin/users', { method: 'POST', body: JSON.stringify(input) }),
+  getClasses: () => request<SchoolClass[]>('/admin/classes'),
+  createClass: (name: string, schoolYear: number) => request<SchoolClass>('/admin/classes', { method: 'POST', body: JSON.stringify({ name, schoolYear }) }),
   deleteClass: (id: number) => request(`/admin/classes/${id}`, { method: 'DELETE' }),
-  getSubjects: () => request('/admin/subjects'),
-  createSubject: (name: string) => request('/admin/subjects', { method: 'POST', body: JSON.stringify({ name }) }),
+  getSubjects: () => request<Subject[]>('/admin/subjects'),
+  createSubject: (name: string) => request<Subject>('/admin/subjects', { method: 'POST', body: JSON.stringify({ name }) }),
   deleteSubject: (id: number) => request(`/admin/subjects/${id}`, { method: 'DELETE' }),
 
-  // Support endpoints
-  getSupportChats: () => request('/support/chats'),
-  createSupportChat: (content: string) => request('/support/chats', {
-    method: 'POST',
-    body: JSON.stringify({ content }),
+  getSupportChats: (signal?: AbortSignal) => request<Chat[]>('/support/chats', { signal }),
+  getChatContacts: (signal?: AbortSignal) => request<ChatContact[]>('/support/contacts', { signal }),
+  getChatMessages: (chatId: number, afterId: number, signal: AbortSignal) =>
+    request<ChatMessage[]>(`/support/chats/${chatId}/messages?afterId=${afterId}`, { signal }),
+  createSupportChat: (draft: MessageDraft) => request<Chat>('/support/chats', {
+    method: 'POST', body: JSON.stringify(draft),
   }),
-  sendSupportMessage: (chatId: number, content: string) => request(`/support/chats/${chatId}/messages`, {
-    method: 'POST',
-    body: JSON.stringify({ content }),
+  startDirectChat: (contactId: number, draft: MessageDraft) => request<Chat>(`/support/direct/${contactId}`, {
+    method: 'POST', body: JSON.stringify(draft),
   }),
-  closeSupportChat: (chatId: number) => request(`/support/chats/${chatId}/close`, { method: 'PUT' }),
+  sendSupportMessage: (chatId: number, draft: MessageDraft) => request<ChatMessage>(`/support/chats/${chatId}/messages`, {
+    method: 'POST', body: JSON.stringify(draft),
+  }),
+  closeSupportChat: (chatId: number) => request<Chat>(`/support/chats/${chatId}/close`, { method: 'PUT' }),
 };

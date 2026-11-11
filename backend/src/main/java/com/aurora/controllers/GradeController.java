@@ -31,7 +31,7 @@ public class GradeController {
             );
             return ResponseEntity.ok(grade);
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(createError(e.getMessage()));
+            return ApiErrors.badRequest(e);
         }
     }
 
@@ -41,17 +41,17 @@ public class GradeController {
             List<Grade> grades = gradeService.getGradesByStudent(userId(httpRequest), role(httpRequest), studentId);
             return ResponseEntity.ok(grades);
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(createError(e.getMessage()));
+            return ApiErrors.badRequest(e);
         }
     }
 
     @GetMapping("/subject/{subject}")
-    public ResponseEntity<?> getGradesBySubject(@PathVariable String subject) {
+    public ResponseEntity<?> getGradesBySubject(@PathVariable String subject, HttpServletRequest request) {
         try {
-            List<Grade> grades = gradeService.getGradesBySubject(subject);
+            List<Grade> grades = gradeService.getGradesBySubject(userId(request), subject);
             return ResponseEntity.ok(grades);
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(createError(e.getMessage()));
+            return ApiErrors.badRequest(e);
         }
     }
 
@@ -63,7 +63,7 @@ public class GradeController {
             response.put("average", average);
             return ResponseEntity.ok(response);
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(createError(e.getMessage()));
+            return ApiErrors.badRequest(e);
         }
     }
 
@@ -73,14 +73,8 @@ public class GradeController {
             Grade updated = gradeService.updateGrade(userId(httpRequest), role(httpRequest), gradeId, request.value);
             return ResponseEntity.ok(updated);
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(createError(e.getMessage()));
+            return ApiErrors.badRequest(e);
         }
-    }
-
-    private Map<String, String> createError(String message) {
-        Map<String, String> error = new HashMap<>();
-        error.put("error", message);
-        return error;
     }
 
     private Long userId(HttpServletRequest request) throws Exception {

@@ -22,7 +22,7 @@ public class Registration {
     @Enumerated(EnumType.STRING)
     private RegistrationType type;
 
-    @Column(columnDefinition = "LONGTEXT")
+    @Column(columnDefinition = "TEXT")
     private String data;
 
     @Column(nullable = false)
@@ -42,7 +42,7 @@ public class Registration {
     @Enumerated(EnumType.STRING)
     private Status status;
 
-    @Column(name = "submitted_at", nullable = false, columnDefinition = "TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
+    @Column(name = "submitted_at", nullable = false)
     private Long submittedAt;
 
     @PrePersist

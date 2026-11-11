@@ -3,6 +3,7 @@ package com.aurora.config;
 import com.aurora.security.JwtAuthenticationFilter;
 import com.aurora.security.JwtAuthenticationEntryPoint;
 import lombok.RequiredArgsConstructor;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -37,6 +38,13 @@ public class SecurityConfig {
     }
 
     @Bean
+    public FilterRegistrationBean<JwtAuthenticationFilter> jwtFilterRegistration() {
+        var registration = new FilterRegistrationBean<>(jwtAuthenticationFilter);
+        registration.setEnabled(false);
+        return registration;
+    }
+
+    @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
             .csrf(csrf -> csrf.disable())
@@ -62,6 +70,8 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.POST, "/auth/refresh-token").permitAll()
                 .requestMatchers(HttpMethod.POST, "/auth/logout").permitAll()
                 .requestMatchers("/public/**").permitAll()
+                .requestMatchers(HttpMethod.POST, "/students", "/teachers").hasAnyRole("ADMIN", "SUPER_ADMIN")
+                .requestMatchers(HttpMethod.DELETE, "/students/**", "/teachers/**").hasAnyRole("ADMIN", "SUPER_ADMIN")
                 .requestMatchers("/students/**").hasAnyRole("STUDENT", "ADMIN", "SUPER_ADMIN")
                 .requestMatchers("/teachers/**").hasAnyRole("TEACHER", "ADMIN", "SUPER_ADMIN")
                 .requestMatchers("/activities/teacher/**").hasAnyRole("TEACHER", "ADMIN", "SUPER_ADMIN")
@@ -72,6 +82,9 @@ public class SecurityConfig {
                 .requestMatchers("/admin/registrations/**").hasRole("SUPER_ADMIN")
                 .requestMatchers("/admin/**").hasAnyRole("ADMIN", "SUPER_ADMIN")
                 .requestMatchers("/support/**").hasAnyRole("STUDENT", "TEACHER", "ADMIN", "SUPER_ADMIN")
+                .requestMatchers(HttpMethod.POST, "/grades").hasAnyRole("TEACHER", "ADMIN", "SUPER_ADMIN")
+                .requestMatchers(HttpMethod.PUT, "/grades/**").hasAnyRole("TEACHER", "ADMIN", "SUPER_ADMIN")
+                .requestMatchers("/grades/subject/**").hasAnyRole("TEACHER", "ADMIN", "SUPER_ADMIN")
                 .requestMatchers("/grades/**").hasAnyRole("STUDENT", "TEACHER", "ADMIN", "SUPER_ADMIN")
                 .anyRequest().authenticated()
             );
